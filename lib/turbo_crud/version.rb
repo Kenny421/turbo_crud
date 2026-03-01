@@ -2,5 +2,5 @@
 
 module TurboCrud
   # Version constant: bump here, not in 12 random places. 🧠
-  VERSION = "0.4.5"
+  VERSION = "0.4.6"
 end

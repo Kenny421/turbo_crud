@@ -228,22 +228,22 @@ module TurboCrud
           name = attr.name
           type = (attr.type || :string).to_sym
 
-          label = %Q(<%%= f.label :#{name}, class: "block text-sm font-semibold text-slate-900" %%>)
+          label = %Q(<%%= f.label :#{name}, class: "block text-sm font-semibold text-slate-900" %>)
           input = case type
                   when :text
-                    %Q(<%%= f.text_area :#{name}, rows: 5, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %%>)
+                    %Q(<%%= f.text_area :#{name}, rows: 5, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
                   when :boolean
-                    %Q(<div class="mt-2 flex items-center gap-2"><%%= f.check_box :#{name}, class: "h-4 w-4 rounded border-slate-300" %%><span class="text-sm text-slate-700">#{name.to_s.tr("_", " ").capitalize}</span></div>)
+                    %Q(<div class="mt-2 flex items-center gap-2"><%%= f.check_box :#{name}, class: "h-4 w-4 rounded border-slate-300" %><span class="text-sm text-slate-700">#{name.to_s.tr("_", " ").capitalize}</span></div>)
                   when :integer, :float, :decimal
-                    %Q(<%%= f.number_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %%>)
+                    %Q(<%%= f.number_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
                   when :date
-                    %Q(<%%= f.date_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %%>)
+                    %Q(<%%= f.date_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
                   when :datetime, :timestamp
-                    %Q(<%%= f.datetime_local_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %%>)
+                    %Q(<%%= f.datetime_local_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
                   when :time
-                    %Q(<%%= f.time_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %%>)
+                    %Q(<%%= f.time_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
                   else
-                    %Q(<%%= f.text_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %%>)
+                    %Q(<%%= f.text_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
                   end
 
           %Q(<div>
@@ -255,8 +255,8 @@ module TurboCrud
 
       def default_title_field
         %Q(<div>
-  <%%= f.label :title, class: "block text-sm font-semibold text-slate-900" %%>
-  <%%= f.text_field :title, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %%>
+  <%%= f.label :title, class: "block text-sm font-semibold text-slate-900" %>
+  <%%= f.text_field :title, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
 </div>)
       end
     end

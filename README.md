@@ -1,4 +1,4 @@
-# TurboCrud (v0.4.5)
+# TurboCrud (v0.4.6)
 
 TurboCrud is a small, opinionated helper layer for Rails + Turbo that makes CRUD feel like you're speedrunning.
 
