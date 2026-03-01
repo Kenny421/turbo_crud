@@ -1,0 +1,42 @@
+
+
+<div id="<%= dom_id(note) %>" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+  <div class="flex items-start justify-between gap-3">
+    <div class="min-w-0">
+      <% preferred_attrs = ['body'] %>
+<% shown_any = false %>
+<% preferred_attrs.each do |attr| %>
+  <% next unless note.respond_to?(attr) %>
+  <% raw_value = note.public_send(attr) %>
+  <% value =
+    if raw_value == true || raw_value == false
+      raw_value ? "Yes" : "No"
+    elsif raw_value.present?
+      raw_value
+    end %>
+  <% next if value.nil? %>
+  <% shown_any = true %>
+  <p class="mt-1 text-sm text-slate-600">
+    <span class="font-semibold text-slate-700"><%= attr.humanize %>:</span>
+    <%= value.is_a?(String) ? truncate(value, length: 120) : value %>
+  </p>
+<% end %>
+<% unless shown_any %>
+  <p class="text-sm font-semibold text-slate-900"><%= (note.respond_to?(:body) && note.public_send(:body).presence) || (note.attributes.except('id', 'created_at', 'updated_at').values.find(&:present?)) || "Note" %></p>
+<% end %>
+      <% if note.respond_to?(:updated_at) && note.updated_at.present? %>
+        <p class="mt-1 text-sm text-slate-600">Updated <%= time_ago_in_words(note.updated_at) %> ago</p>
+      <% end %>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <%= turbo_crud_modal_link "Edit", edit_note_path(note),
+        class: "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-50" %>
+
+      <%= button_to "Delete", note_path(note),
+        method: :delete,
+        form: { data: { turbo_confirm: "Delete this?" } },
+        class: "rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-700 hover:bg-rose-100" %>
+    </div>
+  </div>
+</div>

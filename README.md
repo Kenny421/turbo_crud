@@ -2,6 +2,23 @@
 
 TurboCrud is a small, opinionated helper layer for Rails + Turbo that makes CRUD feel like you're speedrunning.
 
+## Quick start (choose one path)
+
+If you are starting new CRUD screens:
+
+```bash
+bin/rails g turbo_crud:scaffold Post title body:text published:boolean --container=both
+```
+
+If you already have a Rails scaffold/app and want to integrate TurboCrud:
+1. Add layout frames (`turbo_crud_flash_frame`, `turbo_crud_modal_frame`, `turbo_crud_drawer_frame`)
+2. Update controller create/update/destroy to `turbo_create`, `turbo_update`, `turbo_destroy`
+3. Render index list with `turbo_list_id(Model)` + a row partial collection
+4. Ensure row partial exists (`_row` or existing model partial like `_blog`)
+5. Wrap `new/edit` pages with `turbo_crud_container`
+
+If your modal shows `Content missing`, `new/edit` is not wrapped/rendered for Turbo frame requests.
+
 ## What you get
 - Consistent **Turbo Stream** responses for create/update/destroy
 - Drop-in **modal frame** + **drawer frame** + **flash frame**
@@ -186,74 +203,148 @@ TurboCrud.configure do |c|
 end
 ```
 
-## Using TurboCrud with existing apps (existing forms, existing views)
+## Existing app integration (step-by-step)
 
-You do **not** have to rewrite your forms.
+You can keep your existing model, routes, and form partials.
 
-### Step 1: open new/edit in a frame (modal or drawer)
+### 1) Add layout frames once
 
-```erb
-<%= turbo_crud_modal_link "New", new_post_path %>
-<%= turbo_crud_modal_link "Edit", edit_post_path(@post) %>
-```
-
-Or drawer:
+In `app/views/layouts/application.html.erb` (near end of `<body>`):
 
 ```erb
-<%= turbo_crud_drawer_link "New", new_post_path %>
+<%= turbo_crud_flash_frame %>
+<%= turbo_crud_modal_frame %>
+<%= turbo_crud_drawer_frame %>
 ```
 
-### Step 2: wrap your current new/edit views (keep your form partial!)
+### 2) Update controller actions to TurboCrud responders
 
-In your existing `new.html.erb`:
-
-```erb
-<%= turbo_crud_container title: "New Post" do %>
-  <%= render "form" %>
-<% end %>
-```
-
-In your existing `edit.html.erb`:
-
-```erb
-<%= turbo_crud_container title: "Edit Post" do %>
-  <%= render "form" %>
-<% end %>
-```
-
-### Step 3: use `turbo_respond` in your controller
+Example for an existing `BlogsController`:
 
 ```ruby
-def create
-  @post = Post.new(post_params)
-  turbo_respond(@post, list: Post, success_message: "Created!")
-end
+class BlogsController < ApplicationController
+  include TurboCrud::Controller
+  before_action :set_blog, only: %i[show edit update destroy]
 
-def update
-  @post = Post.find(params[:id])
-  @post.assign_attributes(post_params)
-  turbo_respond(@post, list: Post, success_message: "Updated!")
+  def index
+    @blogs = Blog.order(created_at: :desc)
+  end
+
+  def new
+    @blog = Blog.new
+    render(**turbo_crud_template_for(:new))
+  end
+
+  def edit
+    render(**turbo_crud_template_for(:edit))
+  end
+
+  def create
+    @blog = Blog.new(blog_params)
+    turbo_create(@blog, list: Blog, row_partial: "blogs/blog", success_message: "Blog created!")
+  end
+
+  def update
+    @blog.assign_attributes(blog_params)
+    turbo_update(@blog, row_partial: "blogs/blog", success_message: "Blog updated!")
+  end
+
+  def destroy
+    turbo_destroy(@blog, list: Blog, success_message: "Blog deleted.")
+  end
 end
 ```
 
-### Row partial auto-detection
+Note: keep your preferred strong params style (`require/permit` or Rails 8 `expect`).
 
-TurboCrud will try:
-1) `posts/_row.html.erb`
-2) `posts/_post.html.erb` (common existing Rails partial)
+### 3) Update index to use Turbo list id + row partial collection
 
-You can override globally:
+Replace the classic scaffold loop:
+
+```erb
+<div id="blogs">
+  <% @blogs.each do |blog| %>
+    <%= render blog %>
+  <% end %>
+</div>
+<%= link_to "New blog", new_blog_path %>
+```
+
+with:
+
+```erb
+<%= turbo_crud_modal_link "New blog", new_blog_path %>
+
+<div id="<%= turbo_list_id(Blog) %>">
+  <%= render partial: "blogs/blog", collection: @blogs, as: :blog %>
+</div>
+```
+
+Use `turbo_crud_drawer_link` instead if your app prefers drawers.
+
+### 4) Reuse your existing `_blog` partial as the row partial
+
+If you already have `app/views/blogs/_blog.html.erb`, you can use it directly:
+
+```erb
+<div id="<%= dom_id blog %>">
+  <div>
+    <strong>Title:</strong>
+    <%= blog.title %>
+  </div>
+
+  <div>
+    <strong>Content:</strong>
+    <%= blog.content %>
+  </div>
+
+  <div class="mt-3">
+    <%= turbo_crud_modal_link "Edit", edit_blog_path(blog),
+      class: "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-50" %>
+  </div>
+</div>
+```
+
+### 5) Wrap `new/edit` pages so frame requests render container UI
+
+`app/views/blogs/new.html.erb`:
+
+```erb
+<%= turbo_crud_container title: "New Blog" do %>
+  <%= render "form", blog: @blog %>
+<% end %>
+```
+
+`app/views/blogs/edit.html.erb`:
+
+```erb
+<%= turbo_crud_container title: "Edit Blog" do %>
+  <%= render "form", blog: @blog %>
+<% end %>
+```
+
+If you see "Content missing", it usually means your `new/edit` templates are not rendering inside TurboCrud container/frame markup.
+
+### 6) Common integration mistakes
+
+- Index list container uses `id="blogs"` instead of `id="<%= turbo_list_id(Blog) %>"`
+- Controller `create/update` does not pass `list: Blog`
+- No row partial available (`blogs/_row` or `blogs/_blog`)
+- `new/edit` renders plain form page instead of `turbo_crud_container`
+- Using wrong route helper in row partial (example: `edit_dan_path` instead of `edit_blog_path`)
+
+### Row partial auto-detection (if you don't pass `row_partial`)
+
+TurboCrud tries:
+1) `blogs/_row.html.erb`
+2) `blogs/_blog.html.erb`
+
+You can also set globally:
 
 ```ruby
 TurboCrud.configure do |c|
-  c.row_partial = "posts/post" # or "shared/post_row"
+  c.row_partial = "blogs/blog"
 end
-```
-
-Or per-call:
-
-```ruby
-turbo_respond(@post, list: Post, row_partial: "posts/post")
 ```
 
 ## Full scaffold generator (model + migration + routes + TurboCrud views)
