@@ -1,0 +1,16 @@
+<%# Flash partial. Tiny. Friendly. Like a snack. 🍪 %>
+
+<% notice_message = local_assigns[:notice] || flash[:notice] %>
+<% alert_message  = local_assigns[:alert]  || flash[:alert] %>
+
+<% if notice_message.present? %>
+  <div class="turbo-crud__flash turbo-crud__flash--notice" role="status">
+    <span><%= notice_message %></span>
+  </div>
+<% end %>
+
+<% if alert_message.present? %>
+  <div class="turbo-crud__flash turbo-crud__flash--alert" role="alert">
+    <span><%= alert_message %></span>
+  </div>
+<% end %>

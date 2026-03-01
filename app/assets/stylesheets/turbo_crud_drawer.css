@@ -1,0 +1,59 @@
+/* TurboCrud JS-free drawer shell.
+   Drawer is just a modal that decided to live on the right side. 😄 */
+
+.turbo-crud__drawer-shell{
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  grid-template-columns: 1fr min(92vw, 520px);
+  background: rgba(2,6,23,0.55);
+  backdrop-filter: blur(8px);
+}
+
+.turbo-crud__drawer-backdrop{
+  /* Clicks will go through unless you add a close link in your drawer head.
+     Keeping it JS-free means: we don't auto-close on backdrop click. */
+}
+
+.turbo-crud__drawer-card{
+  height: 100%;
+  background: white;
+  border-left: 1px solid rgba(148,163,184,0.35);
+  box-shadow: -20px 0 80px rgba(15,23,42,0.25);
+  overflow: auto;
+}
+
+.turbo-crud__drawer-head{
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(148,163,184,0.25);
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(10px);
+}
+
+.turbo-crud__drawer-title{
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.turbo-crud__drawer-close{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(148,163,184,0.35);
+  background: white;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.turbo-crud__drawer-body{ padding: 1.25rem; }

@@ -1,0 +1,14 @@
+
+
+<div class="turbo-crud__modal-shell">
+  <div class="turbo-crud__modal-card">
+    <div class="turbo-crud__modal-head">
+      <h2 class="turbo-crud__modal-title">Edit <%= Post.model_name.human %%></h2>
+      <%= link_to "✕", "#", data: { turbo_frame: "_top" }, class: "turbo-crud__modal-close" %%>
+    </div>
+
+    <div class="turbo-crud__modal-body">
+      <%= render "form" %>
+    </div>
+  </div>
+</div>

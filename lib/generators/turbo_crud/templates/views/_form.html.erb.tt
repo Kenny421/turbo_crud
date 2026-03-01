@@ -1,0 +1,22 @@
+<%# Form partial: rendered inside modal/drawer.
+    Generator auto-builds the fields from your attributes. ✨ %>
+
+<%%= turbo_crud_form_with model: @<%= singular_name %>, class: "space-y-4" do |f| %%>
+  <%% if @<%= singular_name %>.errors.any? %%>
+    <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+      <p class="font-semibold">Please fix the errors:</p>
+      <ul class="mt-2 list-disc pl-5">
+        <%% @<%= singular_name %>.errors.full_messages.each do |msg| %%>
+          <li><%%= msg %%></li>
+        <%% end %%>
+      </ul>
+    </div>
+  <%% end %%>
+
+  <%= @generated_fields %>
+
+  <div class="flex items-center justify-end gap-2 pt-2">
+    <%%= link_to "Cancel", "#", data: { turbo_frame: "_top" }, class: "rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold" %%>
+    <%%= f.submit class: "rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" %%>
+  </div>
+<%% end %%>

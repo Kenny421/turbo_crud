@@ -1,0 +1,51 @@
+/* TurboCrud JS-free modal shell.
+   Turbo swaps modal content into a frame. Simple & stable. 🌙 */
+
+.turbo-crud__modal-shell{
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(2,6,23,0.55);
+  backdrop-filter: blur(8px);
+}
+
+.turbo-crud__modal-card{
+  width: min(92vw, 720px);
+  border-radius: 1.25rem;
+  background: white;
+  border: 1px solid rgba(148,163,184,0.35);
+  box-shadow: 0 30px 80px rgba(15,23,42,0.30);
+  overflow: hidden;
+}
+
+.turbo-crud__modal-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(148,163,184,0.25);
+}
+
+.turbo-crud__modal-title{
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.turbo-crud__modal-close{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(148,163,184,0.35);
+  background: white;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.turbo-crud__modal-body{ padding: 1.25rem; }

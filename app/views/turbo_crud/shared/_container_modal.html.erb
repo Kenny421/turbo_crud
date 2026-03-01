@@ -1,0 +1,21 @@
+<%# Modal container shell (JS-free). Turbo swaps this into the modal frame.
+    body is pre-captured HTML from your existing view. %>
+
+<div class="turbo-crud__modal-shell">
+  <div class="turbo-crud__modal-card">
+    <div class="turbo-crud__modal-head">
+      <h2 class="turbo-crud__modal-title"><%= title %></h2>
+
+      <%# close_to_top: if true, we target _top so the frame clears.
+          (works great for modal/drawer content) %>
+      <%= link_to "✕", "#",
+        data: { turbo_frame: (close_to_top ? "_top" : TurboCrud.config.modal_frame_id) },
+        class: "turbo-crud__modal-close",
+        aria: { label: "Close" } %>
+    </div>
+
+    <div class="turbo-crud__modal-body">
+      <%= body %>
+    </div>
+  </div>
+</div>

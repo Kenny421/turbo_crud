@@ -1,0 +1,25 @@
+name: Security
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Brakeman
+        run: bundle exec brakeman --force --no-pager -q
+
+      - name: Bundle Audit
+        run: bundle exec bundle-audit check --update
