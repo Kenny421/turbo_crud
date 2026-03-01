@@ -1,4 +1,4 @@
-# TurboCrud (v0.4.6)
+# TurboCrud (v0.4.7)
 
 TurboCrud is a small, opinionated helper layer for Rails + Turbo that makes CRUD feel like you're speedrunning.
 
@@ -268,11 +268,10 @@ Run it like:
 
 ```bash
 bin/rails g turbo_crud:full_scaffold Post title body:text published:boolean --container=both
-bin/rails db:migrate
 ```
 
 Notes:
-- Rails generators don’t run migrations automatically (Rails is polite like that).
+- TurboCrud does not run `db:migrate` unless you opt in with `--migrate`.
 - If routes already exist, TurboCrud won’t double-inject them.
 
 ## One generator to remember: `turbo_crud:scaffold`
@@ -287,8 +286,10 @@ If you want **FULL scaffold** (model + migration + routes + controller + views),
 
 ```bash
 bin/rails g turbo_crud:scaffold Post title body:text published:boolean --container=both --full
-bin/rails db:migrate
 ```
+
+`--full` does not run `db:migrate` by default.
+Use `--migrate` to run migrations automatically.
 
 You can control parts:
 

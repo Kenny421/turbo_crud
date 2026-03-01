@@ -6,7 +6,7 @@
     <p class="text-sm text-slate-600">Turbo list updates + modal/drawer create/edit.</p>
   </div>
 
-  <%%= turbo_crud_modal_link "New", new_<%= singular_name %>_path,
+  <%%= <%= new_link_helper %> "New", new_<%= singular_name %>_path,
     class: "rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" %>
 </div>
 

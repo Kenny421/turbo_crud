@@ -44,6 +44,11 @@ module TurboCrud
                    default: false,
                    desc: "Skip injecting resources routes (only with --full)"
 
+      class_option :migrate,
+                   type: :boolean,
+                   default: false,
+                   desc: "Run db:migrate automatically when using --full (use --migrate to enable)"
+
       # NEW: installs layout frames + CSS requires.
       class_option :install,
                    type: :boolean,
@@ -62,6 +67,7 @@ module TurboCrud
 
         generate_model unless options[:skip_model]
         inject_routes unless options[:skip_routes]
+        run_migrations_if_full
       end
 
       def create_controller
@@ -72,6 +78,7 @@ module TurboCrud
         return if options[:wrap_existing]
 
         @generated_fields = build_fields_markup
+        @generated_row_fields = build_row_fields_markup
 
         template "views/index.html.erb.tt", "app/views/#{plural_name}/index.html.erb"
         template "views/_row.html.erb.tt",  "app/views/#{plural_name}/_row.html.erb"
@@ -109,8 +116,12 @@ module TurboCrud
       # FULL MODE helpers (model + routes)
       # -------------------------------------------
       def generate_model
-        say_status :invoke, "rails g model #{class_name} ...", :green
-        invoke "active_record:model", [class_name], attributes: attributes
+        if model_file_exists?
+          generate_add_columns_migration
+        else
+          say_status :invoke, "rails g model #{class_name} ...", :green
+          invoke "active_record:model", [class_name] + generator_attribute_args
+        end
       end
 
       def inject_routes
@@ -135,6 +146,38 @@ module TurboCrud
           append_to_file "config/routes.rb", "\n#{route_line}\n"
           say_status :append, "appended #{route_line} to routes.rb", :green
         end
+      end
+
+      def model_file_exists?
+        File.exist?(File.join(destination_root, "app/models/#{file_name}.rb"))
+      end
+
+      def generate_add_columns_migration
+        if attributes.empty?
+          say_status :identical, "model exists and no attributes provided; skipping migration generation", :blue
+          return
+        end
+
+        migration_suffix = attributes.map(&:name).join("_and_")
+        migration_name = "add_#{migration_suffix}_to_#{plural_name}"
+
+        say_status :invoke, "rails g migration #{migration_name} ...", :green
+        invoke "active_record:migration", [migration_name] + generator_attribute_args
+      end
+
+      def generator_attribute_args
+        attributes.map do |attr|
+          type = (attr.type || :string).to_s
+          "#{attr.name}:#{type}"
+        end
+      end
+
+      def run_migrations_if_full
+        return if options[:skip_model]
+        return unless options[:migrate]
+
+        say_status :invoke, "bin/rails db:migrate", :green
+        rails_command "db:migrate"
       end
 
       # -------------------------------------------
@@ -222,42 +265,110 @@ module TurboCrud
       end
 
       def build_fields_markup
-        return default_title_field if attributes.empty?
-
-        attributes.map do |attr|
-          name = attr.name
-          type = (attr.type || :string).to_sym
-
-          label = %Q(<%%= f.label :#{name}, class: "block text-sm font-semibold text-slate-900" %>)
-          input = case type
-                  when :text
-                    %Q(<%%= f.text_area :#{name}, rows: 5, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
-                  when :boolean
-                    %Q(<div class="mt-2 flex items-center gap-2"><%%= f.check_box :#{name}, class: "h-4 w-4 rounded border-slate-300" %><span class="text-sm text-slate-700">#{name.to_s.tr("_", " ").capitalize}</span></div>)
-                  when :integer, :float, :decimal
-                    %Q(<%%= f.number_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
-                  when :date
-                    %Q(<%%= f.date_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
-                  when :datetime, :timestamp
-                    %Q(<%%= f.datetime_local_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
-                  when :time
-                    %Q(<%%= f.time_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
-                  else
-                    %Q(<%%= f.text_field :#{name}, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>)
-                  end
-
-          %Q(<div>
-  #{label}
-  #{input}
-</div>)
-        end.join("\n\n")
+        dynamic_fields_markup(
+          preferred_attrs: attributes.map(&:name),
+          preferred_types: attributes.each_with_object({}) do |attr, acc|
+            acc[attr.name] = (attr.type || :string).to_s
+          end
+        )
       end
 
-      def default_title_field
-        %Q(<div>
-  <%%= f.label :title, class: "block text-sm font-semibold text-slate-900" %>
-  <%%= f.text_field :title, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
-</div>)
+      def dynamic_fields_markup(preferred_attrs:, preferred_types:)
+        preferred_literal = preferred_attrs.map { |name| "'#{name}'" }.join(", ")
+        preferred_types_literal = preferred_types.map { |name, type| "'#{name}' => '#{type}'" }.join(", ")
+
+        <<~ERB.chomp
+          <% preferred_types = { #{preferred_types_literal} } %>
+          <% model_attrs = f.object.class.attribute_names - %w[id created_at updated_at] %>
+          <% preferred_attrs = [#{preferred_literal}] %>
+          <% editable_attrs = if preferred_attrs.any?
+                                preferred_attrs
+                              else
+                                model_attrs
+                              end %>
+          <% if editable_attrs.empty? %>
+            <p class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              No editable columns found. Add model columns and run migrations, then reload this form.
+            </p>
+          <% else %>
+            <% editable_attrs.each do |attr| %>
+              <% attr_type = f.object.class.type_for_attribute(attr).type rescue :string %>
+              <div>
+                <%= f.label attr, class: "block text-sm font-semibold text-slate-900" %>
+                <% field_type = (preferred_types[attr]&.to_sym || attr_type) %>
+                <% if field_type == :boolean %>
+                  <div class="mt-2 flex items-center gap-2">
+                    <%= f.check_box attr, class: "h-4 w-4 rounded border-slate-300" %>
+                    <span class="text-sm text-slate-700"><%= attr.humanize %></span>
+                  </div>
+                <% elsif field_type == :text %>
+                  <%= f.text_area attr, rows: 5, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                <% elsif [:integer, :float, :decimal].include?(field_type) %>
+                  <%= f.number_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                <% elsif field_type == :date %>
+                  <%= f.date_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                <% elsif [:datetime, :timestamp].include?(field_type) %>
+                  <%= f.datetime_local_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                <% elsif field_type == :time %>
+                  <%= f.time_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                <% else %>
+                  <%= f.text_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+        ERB
+      end
+
+      def build_row_fields_markup
+        preferred_literal = attributes.map(&:name).reject { |name| %w[id created_at updated_at].include?(name) }
+                             .map { |name| "'#{name}'" }.join(", ")
+        record_var = singular_name
+        fallback_expr = row_label_expression
+
+        <<~ERB.chomp
+          <% preferred_attrs = [#{preferred_literal}] %>
+          <% shown_any = false %>
+          <% preferred_attrs.each do |attr| %>
+            <% next unless #{record_var}.respond_to?(attr) %>
+            <% raw_value = #{record_var}.public_send(attr) %>
+            <% value =
+              if raw_value == true || raw_value == false
+                raw_value ? "Yes" : "No"
+              elsif raw_value.present?
+                raw_value
+              end %>
+            <% next if value.nil? %>
+            <% shown_any = true %>
+            <p class="mt-1 text-sm text-slate-600">
+              <span class="font-semibold text-slate-700"><%= attr.humanize %>:</span>
+              <%= value.is_a?(String) ? truncate(value, length: 120) : value %>
+            </p>
+          <% end %>
+          <% unless shown_any %>
+            <p class="text-sm font-semibold text-slate-900"><%= #{fallback_expr} %></p>
+          <% end %>
+        ERB
+      end
+
+      def row_label_expression
+        preferred = %w[title name content body subject label description]
+        available = attributes.map(&:name).reject { |name| %w[id created_at updated_at].include?(name) }
+        runtime_content = "#{singular_name}.attributes.except('id', 'created_at', 'updated_at').values.find(&:present?)"
+        fallback = '"' + class_name + '"'
+
+        return "(#{runtime_content}) || #{fallback}" if available.empty?
+
+        ordered = (preferred & available) + (available - preferred)
+        checks = ordered.map do |attr|
+          "(#{singular_name}.respond_to?(:#{attr}) && #{singular_name}.public_send(:#{attr}).presence)"
+        end
+
+        "#{checks.join(' || ')} || (#{runtime_content}) || #{fallback}"
+      end
+
+      def new_link_helper
+        normalized_container == "drawer" ? "turbo_crud_drawer_link" : "turbo_crud_modal_link"
       end
     end
   end

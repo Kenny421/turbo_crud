@@ -58,31 +58,35 @@ module TurboCrud
       kwargs[:data][:turbo_frame] ||= frame
       form_with(*args, **kwargs, &block)
     end
-# Wrap any existing view inside a TurboCrud container (modal or drawer).
-#
-# Usage (in your existing new/edit):
-#   <%= turbo_crud_container title: "New Post" do %>
-#     <%= render "form" %>
-#   <% end %>
-#
-# The container defaults to TurboCrud.config.default_container (:modal or :drawer),
-# but you can force one:
-#   turbo_crud_container(title: "...", container: :drawer) { ... }
-def turbo_crud_container(title:, container: nil, close_to_top: true, &block)
-  # Capture the block output (the form / content you already have).
-  body = capture(&block)
+    # Wrap any existing view inside a TurboCrud container (modal or drawer).
+    #
+    # Usage (in your existing new/edit):
+    #   <%= turbo_crud_container title: "New Post" do %>
+    #     <%= render "form" %>
+    #   <% end %>
+    #
+    # The container defaults to TurboCrud.config.default_container (:modal or :drawer),
+    # but you can force one:
+    #   turbo_crud_container(title: "...", container: :drawer) { ... }
+    def turbo_crud_container(title:, container: nil, close_to_top: true, &block)
+      # Capture the block output (the form / content you already have).
+      body = capture(&block)
 
-  chosen = (container || TurboCrud.config.default_container).to_sym
+      chosen = (container || TurboCrud.config.default_container).to_sym
 
-  # We render a partial shipped by the gem, because HTML is nicer to read there.
-  partial =
-    case chosen
-    when :drawer then "turbo_crud/shared/container_drawer"
-    else "turbo_crud/shared/container_modal"
+      # We render a partial shipped by the gem, because HTML is nicer to read there.
+      partial =
+        case chosen
+        when :drawer then "turbo_crud/shared/container_drawer"
+        else "turbo_crud/shared/container_modal"
+        end
+
+      frame_id = chosen == :drawer ? TurboCrud.config.drawer_frame_id : TurboCrud.config.modal_frame_id
+
+      turbo_frame_tag(frame_id) do
+        render partial, title: title, body: body, close_to_top: close_to_top
+      end
     end
-
-  render partial, title: title, body: body, close_to_top: close_to_top
-end
 
   end
 end

@@ -59,7 +59,7 @@ module TurboCrud
         respond_to do |format|
           # If record is new, render :new; else render :edit.
           action = record.persisted? ? :edit : :new
-          format.turbo_stream { render action: action, status: failure_status }
+          format.turbo_stream { render(**turbo_crud_template_for(action), formats: :html, status: failure_status) }
           format.html { render action, status: failure_status }
         end
       end
@@ -103,7 +103,7 @@ module TurboCrud
         end
       else
         respond_to do |format|
-          format.turbo_stream { render action: :new, status: failure_status }
+          format.turbo_stream { render(**turbo_crud_template_for(:new), formats: :html, status: failure_status) }
           format.html { render :new, status: failure_status }
         end
       end
@@ -132,7 +132,7 @@ module TurboCrud
         end
       else
         respond_to do |format|
-          format.turbo_stream { render action: :edit, status: failure_status }
+          format.turbo_stream { render(**turbo_crud_template_for(:edit), formats: :html, status: failure_status) }
           format.html { render :edit, status: failure_status }
         end
       end
@@ -283,6 +283,24 @@ module TurboCrud
       return if replace.nil? || replace == :row || replace.is_a?(String) || replace.is_a?(Symbol)
 
       raise ArgumentError, "Invalid `replace:` #{replace.inspect}. Use :row, a DOM id String/Symbol, or nil."
+    end
+
+    def turbo_crud_template_for(action)
+      return { action: action } unless turbo_crud_requested_frame_id == TurboCrud.config.drawer_frame_id
+
+      drawer_variant = "#{action}.drawer"
+      template = "#{controller_path}/#{drawer_variant}"
+      if lookup_context.exists?(template, [], true)
+        return { template: template }
+      end
+
+      { action: action }
+    end
+
+    def turbo_crud_requested_frame_id
+      helper_frame_id = turbo_frame_request_id if respond_to?(:turbo_frame_request_id, true)
+
+      helper_frame_id || request.headers["Turbo-Frame"] || request.get_header("HTTP_TURBO_FRAME") || params[:turbo_frame]
     end
   end
 end

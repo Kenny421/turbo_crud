@@ -1,16 +1,18 @@
 <%# Edit page: rendered into the DRAWER frame. %>
 
-<div class="turbo-crud__drawer-shell">
-  <div class="turbo-crud__drawer-backdrop"></div>
+<%%= turbo_frame_tag TurboCrud.config.drawer_frame_id do %>
+  <div class="turbo-crud__drawer-shell">
+    <div class="turbo-crud__drawer-backdrop"></div>
 
-  <div class="turbo-crud__drawer-card">
-    <div class="turbo-crud__drawer-head">
-      <h2 class="turbo-crud__drawer-title">Edit <%%= <%= class_name %>.model_name.human %></h2>
-      <%%= link_to "✕", "#", data: { turbo_frame: "_top" }, class: "turbo-crud__drawer-close" %>
-    </div>
+    <div class="turbo-crud__drawer-card">
+      <div class="turbo-crud__drawer-head">
+        <h2 class="turbo-crud__drawer-title">Edit <%%= <%= class_name %>.model_name.human %></h2>
+        <%%= link_to "✕", "#", data: { turbo_frame: "_top" }, class: "turbo-crud__drawer-close" %>
+      </div>
 
-    <div class="turbo-crud__drawer-body">
-      <%%= render "form" %>
+      <div class="turbo-crud__drawer-body">
+        <%%= render "form" %>
+      </div>
     </div>
   </div>
-</div>
+<%% end %>

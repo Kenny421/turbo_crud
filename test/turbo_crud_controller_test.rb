@@ -6,6 +6,7 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
   # Turbo Streams use this content type.
   TURBO_STREAM = "text/vnd.turbo-stream.html"
 
+
   def assert_request_exception(klass, message_fragment = nil)
     exception = response.request.get_header("action_dispatch.exception")
     assert_kind_of klass, exception

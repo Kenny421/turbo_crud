@@ -8,7 +8,7 @@
 # - routes (resources :plural)
 # - TurboCrud controller + views (modal/drawer/both)
 #
-# It does NOT run db:migrate (Rails generators don't do that by default).
+# It can run db:migrate automatically (opt-in via --migrate).
 require "rails/generators"
 require "rails/generators/named_base"
 
@@ -38,6 +38,11 @@ module TurboCrud
                    default: false,
                    desc: "Skip injecting resources routes"
 
+      class_option :migrate,
+                   type: :boolean,
+                   default: false,
+                   desc: "Run db:migrate automatically after generating model/routes (use --migrate to enable)"
+
       def validate_options!
         normalized = options[:container].to_s.strip.downcase
         return if VALID_CONTAINERS.include?(normalized)
@@ -49,14 +54,13 @@ module TurboCrud
       def generate_model
         return if options[:skip_model]
 
-        # Build "title:string body:text" etc.
-        model_attrs = attributes.map do |a|
-          a.type ? "#{a.name}:#{a.type}" : a.name
+        if model_file_exists?
+          generate_add_columns_migration
+        else
+          say_status :invoke, "rails g model #{class_name} #{generator_attribute_args.join(' ')}", :green
+          # Invoke the Rails model generator.
+          invoke "active_record:model", [class_name] + generator_attribute_args
         end
-
-        say_status :invoke, "rails g model #{class_name} #{model_attrs.join(' ')}", :green
-        # Invoke the Rails model generator.
-        invoke "active_record:model", [class_name], attributes: attributes
       end
 
       def inject_routes
@@ -94,6 +98,38 @@ module TurboCrud
         # Invoke our own scaffold generator (the one that makes controller/views)
         invoke "turbo_crud:scaffold", [class_name] + attributes.map { |a| a.type ? "#{a.name}:#{a.type}" : a.name },
                container: options[:container]
+      end
+
+      def run_migrations
+        return if options[:skip_model]
+        return unless options[:migrate]
+
+        say_status :invoke, "bin/rails db:migrate", :green
+        rails_command "db:migrate"
+      end
+
+      def model_file_exists?
+        File.exist?(File.join(destination_root, "app/models/#{file_name}.rb"))
+      end
+
+      def generate_add_columns_migration
+        if attributes.empty?
+          say_status :identical, "model exists and no attributes provided; skipping migration generation", :blue
+          return
+        end
+
+        migration_suffix = attributes.map(&:name).join("_and_")
+        migration_name = "add_#{migration_suffix}_to_#{plural_name}"
+
+        say_status :invoke, "rails g migration #{migration_name} ...", :green
+        invoke "active_record:migration", [migration_name] + generator_attribute_args
+      end
+
+      def generator_attribute_args
+        attributes.map do |attr|
+          type = (attr.type || :string).to_s
+          "#{attr.name}:#{type}"
+        end
       end
     end
   end

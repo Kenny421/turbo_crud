@@ -32,10 +32,22 @@ ActiveRecord::Schema.define do
   end
 end
 
-class Post < ActiveRecord::Base; end
+class Post < ActiveRecord::Base
+  validates :title, presence: true
+end
 
 class PostsController < ActionController::Base
   include TurboCrud::Controller
+
+  def new
+    @post = Post.new
+    render(**turbo_crud_template_for(:new))
+  end
+
+  def edit
+    @post = Post.find(params[:id])
+    render(**turbo_crud_template_for(:edit))
+  end
 
   def create
     @post = Post.new(title: params[:title], body: params[:body])
@@ -76,7 +88,7 @@ class PostsController < ActionController::Base
 end
 
 DummyApp.routes.draw do
-  resources :posts, only: [:create, :update, :destroy]
+  resources :posts, only: [:new, :edit, :create, :update, :destroy]
   post "/posts/without_list", to: "posts#create_without_list"
   post "/posts/invalid_insert", to: "posts#create_invalid_insert"
   patch "/posts/:id/invalid_replace", to: "posts#update_invalid_replace"

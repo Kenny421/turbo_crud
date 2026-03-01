@@ -3,7 +3,7 @@
 # Gem specification: the gem's passport. 🛂
 Gem::Specification.new do |spec|
   spec.name          = "turbo_crud"
-  spec.version       = "0.4.6"
+  spec.version       = "0.4.7"
   spec.authors       = ["Kenny Reid"]
   spec.email         = ["your_email@example.com"] # update this
 

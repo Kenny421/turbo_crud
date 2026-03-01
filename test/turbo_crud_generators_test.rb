@@ -41,6 +41,79 @@ class TurboCrudScaffoldGeneratorTest < Rails::Generators::TestCase
     assert_equal first_layout, second_layout
     assert_equal first_css, second_css
   end
+
+  def test_no_attributes_does_not_generate_title_field
+    run_generator ["Van"]
+    assert_file "app/views/vans/_form.html.erb"
+    assert_file "app/views/vans/_row.html.erb"
+    assert_file "app/controllers/vans_controller.rb"
+    form = File.read(File.join(destination_root, "app/views/vans/_form.html.erb"))
+    row = File.read(File.join(destination_root, "app/views/vans/_row.html.erb"))
+    controller = File.read(File.join(destination_root, "app/controllers/vans_controller.rb"))
+    refute_includes form, "f.label :title"
+    refute_includes form, "f.text_field :title"
+    assert_includes form, "editable_attrs = if preferred_attrs.any?"
+    assert_includes form, "model_attrs = f.object.class.attribute_names - %w[id created_at updated_at]"
+    assert_includes form, "No editable columns found. Add model columns and run migrations"
+    assert_includes row, "attributes.except('id', 'created_at', 'updated_at').values.find(&:present?)"
+    refute_includes row, '##{van.id}'
+    assert_includes controller, "safe_van_attrs"
+    assert_includes controller, "Van.attribute_names"
+  end
+
+  def test_row_prefers_title_over_other_fields
+    run_generator ["Post", "content:text", "title:string"]
+    row = File.read(File.join(destination_root, "app/views/posts/_row.html.erb"))
+    assert_includes row, "preferred_attrs = ['content', 'title']"
+    assert_includes row, "next unless post.respond_to?(attr)"
+    assert_includes row, "post.public_send(attr)"
+  end
+
+  def test_drawer_container_uses_drawer_new_link
+    run_generator ["Note", "body:text", "--container=drawer"]
+    index = File.read(File.join(destination_root, "app/views/notes/index.html.erb"))
+    assert_includes index, "turbo_crud_drawer_link"
+    refute_includes index, "turbo_crud_modal_link"
+  end
+
+  def test_modal_container_new_view_uses_modal_frame
+    run_generator ["Thing", "name:string", "--container=modal"]
+    new_view = File.read(File.join(destination_root, "app/views/things/new.html.erb"))
+    assert_includes new_view, "turbo_frame_tag TurboCrud.config.modal_frame_id"
+  end
+
+  def test_drawer_container_new_view_uses_drawer_frame
+    run_generator ["Thing", "name:string", "--container=drawer"]
+    new_view = File.read(File.join(destination_root, "app/views/things/new.html.erb"))
+    assert_includes new_view, "turbo_frame_tag TurboCrud.config.drawer_frame_id"
+  end
+
+  def test_generated_controller_renders_frame_variant_for_new_and_edit
+    run_generator ["Post", "title:string"]
+    controller = File.read(File.join(destination_root, "app/controllers/posts_controller.rb"))
+
+    assert_includes controller, "render(**turbo_crud_template_for(:new))"
+    assert_includes controller, "render(**turbo_crud_template_for(:edit))"
+  end
+
+  def test_full_mode_passes_declared_attributes_to_model_generator
+    generator = TurboCrud::Generators::ScaffoldGenerator.new(
+      ["Dog", "title", "body:text", "published:boolean"],
+      { "full" => true },
+      destination_root: destination_root
+    )
+    captured = []
+
+    generator.define_singleton_method(:invoke) do |name, args = [], *_rest, **_kwargs|
+      captured << [name, args]
+    end
+    generator.send(:generate_model)
+
+    call = captured.find { |name, _args| name == "active_record:model" }
+    assert call, "expected active_record:model to be invoked"
+    _name, args = call
+    assert_equal ["Dog", "title:string", "body:text", "published:boolean"], args
+  end
 end
 
 class TurboCrudFullScaffoldGeneratorTest < Rails::Generators::TestCase

@@ -11,20 +11,22 @@ class <%= plural_name.camelize %>Controller < ApplicationController
 
   def new
     @<%= singular_name %> = <%= class_name %>.new
+    render(**turbo_crud_template_for(:new))
   end
 
   def edit
     @<%= singular_name %> = <%= class_name %>.find(params[:id])
+    render(**turbo_crud_template_for(:edit))
   end
 
   def create
-    @<%= singular_name %> = <%= class_name %>.new(<%= singular_name %>_params)
+    @<%= singular_name %> = <%= class_name %>.new(safe_<%= singular_name %>_attrs)
     turbo_create(@<%= singular_name %>, list: <%= class_name %>, success_message: "<%= class_name %> created!")
   end
 
   def update
     @<%= singular_name %> = <%= class_name %>.find(params[:id])
-    @<%= singular_name %>.assign_attributes(<%= singular_name %>_params)
+    @<%= singular_name %>.assign_attributes(safe_<%= singular_name %>_attrs)
     turbo_update(@<%= singular_name %>, success_message: "<%= class_name %> updated!")
   end
 
@@ -37,5 +39,21 @@ class <%= plural_name.camelize %>Controller < ApplicationController
 
   def <%= singular_name %>_params
     params.require(:<%= singular_name %>).permit(<%= permitted_params %>)
+  end
+
+  # Drop stale/unknown keys so generated controllers are resilient when a
+  # legacy form still submits attributes that no longer exist on the model.
+  def safe_<%= singular_name %>_attrs
+    raw = <%= singular_name %>_params.to_h
+    allowed = raw.slice(*<%= class_name %>.attribute_names)
+    unknown = raw.keys - allowed.keys
+
+    if unknown.any?
+      raise ArgumentError,
+            "Unknown attributes for <%= class_name %>: #{unknown.join(', ')}. " \
+            "Run the migration for these columns, then retry."
+    end
+
+    allowed
   end
 end
