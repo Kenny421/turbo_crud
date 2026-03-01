@@ -1,0 +1,34 @@
+
+
+<%= turbo_crud_form_with model: @blog, class: "space-y-4" do |f| %>
+  <% if @blog.errors.any? %>
+    <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+      <p class="font-semibold">Please fix the errors:</p>
+      <ul class="mt-2 list-disc pl-5">
+        <% @blog.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+  <%= f.label :title, class: "block text-sm font-semibold text-slate-900" %>
+  <%= f.text_field :title, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+</div>
+
+<div>
+  <%= f.label :body, class: "block text-sm font-semibold text-slate-900" %>
+  <%= f.text_area :body, rows: 5, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+</div>
+
+<div>
+  <%= f.label :published, class: "block text-sm font-semibold text-slate-900" %>
+  <div class="mt-2 flex items-center gap-2"><%= f.check_box :published, class: "h-4 w-4 rounded border-slate-300" %><span class="text-sm text-slate-700">Published</span></div>
+</div>
+
+  <div class="flex items-center justify-end gap-2 pt-2">
+    <%= link_to "Cancel", "#", data: { turbo_frame: "_top" }, class: "rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold" %>
+    <%= f.submit class: "rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" %>
+  </div>
+<% end %>

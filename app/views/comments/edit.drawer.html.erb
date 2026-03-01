@@ -1,0 +1,16 @@
+
+
+<div class="turbo-crud__drawer-shell">
+  <div class="turbo-crud__drawer-backdrop"></div>
+
+  <div class="turbo-crud__drawer-card">
+    <div class="turbo-crud__drawer-head">
+      <h2 class="turbo-crud__drawer-title">Edit <%= Comment.model_name.human %></h2>
+      <%= link_to "✕", "#", data: { turbo_frame: "_top" }, class: "turbo-crud__drawer-close" %>
+    </div>
+
+    <div class="turbo-crud__drawer-body">
+      <%= render "form" %>
+    </div>
+  </div>
+</div>
