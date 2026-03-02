@@ -49,6 +49,9 @@ module TurboCrud
     # Decide the default container frame for forms based on configuration.
     # If you set `default_container = :drawer`, forms will target the drawer.
     def turbo_crud_default_frame_id
+      requested = turbo_crud_requested_frame_id
+      return requested if [TurboCrud.config.modal_frame_id, TurboCrud.config.drawer_frame_id].include?(requested)
+
       TurboCrud.config.default_container.to_sym == :drawer ? TurboCrud.config.drawer_frame_id : TurboCrud.config.modal_frame_id
     end
 
@@ -72,7 +75,17 @@ module TurboCrud
       # Capture the block output (the form / content you already have).
       body = capture(&block)
 
-      chosen = (container || TurboCrud.config.default_container).to_sym
+      chosen =
+        if container
+          container.to_sym
+        else
+          case turbo_crud_requested_frame_id
+          when TurboCrud.config.drawer_frame_id then :drawer
+          when TurboCrud.config.modal_frame_id then :modal
+          else
+            TurboCrud.config.default_container.to_sym
+          end
+        end
 
       # We render a partial shipped by the gem, because HTML is nicer to read there.
       partial =
@@ -86,6 +99,13 @@ module TurboCrud
       turbo_frame_tag(frame_id) do
         render partial, title: title, body: body, close_to_top: close_to_top
       end
+    end
+
+    private
+
+    def turbo_crud_requested_frame_id
+      helper_frame_id = turbo_frame_request_id if respond_to?(:turbo_frame_request_id, true)
+      helper_frame_id || request.headers["Turbo-Frame"] || request.get_header("HTTP_TURBO_FRAME") || params[:turbo_frame]
     end
 
   end

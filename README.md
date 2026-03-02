@@ -325,6 +325,16 @@ If you already have `app/views/blogs/_blog.html.erb`, you can use it directly:
 
 If you see "Content missing", it usually means your `new/edit` templates are not rendering inside TurboCrud container/frame markup.
 
+### Drawer `Content missing` quick fix
+
+If this happens when clicking `turbo_crud_drawer_link`:
+
+1. Confirm your layout includes `<%= turbo_crud_drawer_frame %>`.
+2. Confirm `new/edit` use `turbo_crud_container` (or drawer frame wrapper).
+3. Confirm the link uses drawer target:
+   - `<%= turbo_crud_drawer_link "New", new_blog_path %>`
+4. Update to latest TurboCrud and restart Rails server (new frame auto-detection logic is included).
+
 ### 6) Common integration mistakes
 
 - Index list container uses `id="blogs"` instead of `id="<%= turbo_list_id(Blog) %>"`
