@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    turbo_crud (0.4.7)
+    turbo_crud (0.4.8)
       rails (>= 7.0, < 9.0)
       turbo-rails (>= 1.0, < 3.0)
 

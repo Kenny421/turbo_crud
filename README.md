@@ -1,4 +1,4 @@
-# TurboCrud (v0.4.7)
+# TurboCrud (v0.4.8)
 
 TurboCrud is a small, opinionated helper layer for Rails + Turbo that makes CRUD feel like you're speedrunning.
 
@@ -73,6 +73,12 @@ TurboCrud.configure do |c|
   # Row partial auto-detect is default (:auto)
   # If your app uses a custom partial path, set it:
   # c.row_partial = "posts/post"
+
+  # Optional per-model overrides (safer than one global row_partial):
+  # key can be model class, class name, or model symbol/string.
+  c.model_defaults = {
+    "Blog" => { row_partial: "blogs/blog", container: :drawer, insert: :append }
+  }
 end
 ```
 
@@ -152,6 +158,17 @@ Links:
 Forms:
 - `turbo_crud_form_with ...` (defaults to your configured container)
 - or explicitly: `turbo_crud_form_with ..., frame: TurboCrud.config.drawer_frame_id`
+- submit buttons auto-disable during Turbo submit (opt out: `data: { turbo_crud_auto_disable: false }`)
+- `Escape` closes active modal/drawer and `Tab` focus stays inside the open container
+
+Example submit button loading text:
+
+```erb
+<%= turbo_crud_form_with model: @post do |f| %>
+  <%= f.text_field :title %>
+  <%= f.submit "Save", data: { turbo_crud_loading_text: "Saving..." } %>
+<% end %>
+```
 
 ---
 
@@ -348,6 +365,7 @@ If this happens when clicking `turbo_crud_drawer_link`:
 TurboCrud tries:
 1) `blogs/_row.html.erb`
 2) `blogs/_blog.html.erb`
+3) `TurboCrud.config.row_partial` (only if path looks compatible with current model)
 
 You can also set globally:
 
@@ -356,6 +374,26 @@ TurboCrud.configure do |c|
   c.row_partial = "blogs/blog"
 end
 ```
+
+Tip: if your app has multiple resources, prefer passing `row_partial:` per action/controller instead of a single global path.
+
+### Per-model defaults (recommended for multi-resource apps)
+
+Instead of a global `c.row_partial`, use:
+
+```ruby
+TurboCrud.configure do |c|
+  c.model_defaults = {
+    "Blog" => { row_partial: "blogs/blog", container: :drawer, insert: :append },
+    "Post" => { container: :modal, insert: :prepend }
+  }
+end
+```
+
+Per-model defaults apply to:
+- `row_partial` (create/update rendering)
+- `container` (default modal/drawer for `turbo_crud_form_with` / `turbo_crud_container`)
+- `insert` (default append/prepend for create)
 
 ## Full scaffold generator (model + migration + routes + TurboCrud views)
 
@@ -421,11 +459,32 @@ If it can’t find those files, it will print a warning with what to add manuall
 
 ---
 
+## Doctor command
+
+TurboCrud includes a diagnostic generator for existing apps:
+
+```bash
+bin/rails g turbo_crud:doctor
+```
+
+It checks:
+- layout frames (`flash`, `modal`, `drawer`)
+- controller inclusion of `TurboCrud::Controller`
+- presence of view partials for stream rendering
+
+Use strict mode (non-zero exit on issues):
+
+```bash
+bin/rails g turbo_crud:doctor --strict
+```
+
+---
+
 ## CI / Security
 
 This repo includes separate GitHub Actions workflows:
 
-- `Test` workflow: runs `bundle exec rake test`
+- `Test` workflow: runs `bundle exec rake test` across Ruby/Rails matrix
 - `Security` workflow: runs `brakeman` and `bundle-audit`
 
 Run locally:
@@ -435,3 +494,26 @@ bundle exec rake test
 bundle exec brakeman --force --no-pager -q
 bundle exec bundle-audit check
 ```
+
+---
+
+## Observability events
+
+TurboCrud emits `ActiveSupport::Notifications` events:
+
+- `turbo_crud.create`
+- `turbo_crud.update`
+- `turbo_crud.destroy`
+- `turbo_crud.row_partial_missing`
+
+Payload includes controller/action, model/id, format, and success/error metadata.
+
+Subscribe example:
+
+```ruby
+ActiveSupport::Notifications.subscribe("turbo_crud.create") do |_name, _start, _finish, _id, payload|
+  Rails.logger.info("[turbo_crud.create] #{payload.inspect}")
+end
+```
+
+In most apps, put this in an initializer if you want centralized logging/metrics.
