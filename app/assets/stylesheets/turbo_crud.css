@@ -20,3 +20,13 @@
 
 /* Red-ish “uh oh” */
 .turbo-crud__flash--alert{ background: rgba(244, 63, 94, 0.12); }
+
+/* Form loading hint while Turbo request is in-flight. */
+form[data-turbo-crud-loading="true"] {
+  cursor: progress;
+}
+
+form[data-turbo-crud-loading="true"] button[type="submit"],
+form[data-turbo-crud-loading="true"] input[type="submit"] {
+  opacity: 0.72;
+}
