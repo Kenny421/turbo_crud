@@ -8,15 +8,34 @@ on:
 jobs:
   rake-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ruby: "3.1"
+            gemfile: gemfiles/rails_7_0.gemfile
+            rails: "7.0"
+          - ruby: "3.2"
+            gemfile: gemfiles/rails_7_1.gemfile
+            rails: "7.1"
+          - ruby: "3.3"
+            gemfile: gemfiles/rails_8_0.gemfile
+            rails: "8.0"
+          - ruby: "3.4"
+            gemfile: gemfiles/rails_8_1.gemfile
+            rails: "8.1"
+    env:
+      BUNDLE_GEMFILE: ${{ matrix.gemfile }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
+      - name: Set up Ruby ${{ matrix.ruby }}
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
 
-      - name: Run tests
+      - name: Run tests (Rails ${{ matrix.rails }})
         run: bundle exec rake test
