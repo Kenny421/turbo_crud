@@ -6,6 +6,7 @@ require "fileutils"
 
 require_relative "../lib/generators/turbo_crud/scaffold_generator"
 require_relative "../lib/generators/turbo_crud/full_scaffold_generator"
+require_relative "../lib/generators/turbo_crud/doctor_generator"
 
 class TurboCrudScaffoldGeneratorTest < Rails::Generators::TestCase
   tests TurboCrud::Generators::ScaffoldGenerator
@@ -142,5 +143,50 @@ class TurboCrudFullScaffoldGeneratorTest < Rails::Generators::TestCase
 
     routes = File.read(File.join(destination_root, "config/routes.rb"))
     refute_includes routes, "resources :posts"
+  end
+end
+
+class TurboCrudDoctorGeneratorTest < Rails::Generators::TestCase
+  tests TurboCrud::Generators::DoctorGenerator
+  destination File.expand_path("tmp/doctor_generator", __dir__)
+  setup :prepare_destination
+
+  def test_reports_missing_configuration
+    generator = TurboCrud::Generators::DoctorGenerator.new([], {}, destination_root: destination_root)
+    output, = capture_io { generator.run_checks }
+    assert_includes output, "Missing layout file"
+    assert_includes output, "No controllers found"
+    assert_includes output, "No view partials found"
+    assert_includes output, "found 3 issue(s)"
+  end
+
+  def test_passes_when_core_setup_exists
+    FileUtils.mkdir_p(File.join(destination_root, "app/views/layouts"))
+    File.write(
+      File.join(destination_root, "app/views/layouts/application.html.erb"),
+      "<%= turbo_crud_flash_frame %>\n<%= turbo_crud_modal_frame %>\n<%= turbo_crud_drawer_frame %>\n"
+    )
+
+    FileUtils.mkdir_p(File.join(destination_root, "app/controllers"))
+    File.write(
+      File.join(destination_root, "app/controllers/blogs_controller.rb"),
+      "class BlogsController < ApplicationController\n  include TurboCrud::Controller\nend\n"
+    )
+
+    FileUtils.mkdir_p(File.join(destination_root, "app/views/blogs"))
+    File.write(
+      File.join(destination_root, "app/views/blogs/_blog.html.erb"),
+      "<div id=\"<%= dom_id(blog) %>\"><%= blog.title %></div>\n"
+    )
+
+    generator = TurboCrud::Generators::DoctorGenerator.new([], {}, destination_root: destination_root)
+    output, = capture_io { generator.run_checks }
+    assert_includes output, "doctor passed (0 issues)"
+  end
+
+  def test_strict_mode_raises_when_issues_exist
+    generator = TurboCrud::Generators::DoctorGenerator.new([], { "strict" => true }, destination_root: destination_root)
+    error = assert_raises(Thor::Error) { generator.run_checks }
+    assert_includes error.message, "TurboCrud doctor found 3 issue(s)"
   end
 end
