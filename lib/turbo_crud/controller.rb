@@ -3,6 +3,7 @@
 module TurboCrud
   module Controller
     extend ActiveSupport::Concern
+    DEFAULT_OPTION = Object.new
 
     included do
       # 👋 Hello controller! I will:
@@ -32,29 +33,35 @@ module TurboCrud
     # - list: required for create (to know which list DOM id to insert into)
     # - replace: :row (default) or "custom_target" or nil
     # - row_partial: override partial lookup (e.g. "posts/post")
-    def turbo_respond(record, list: nil, insert: TurboCrud.config.default_insert, success_message: nil,
+    def turbo_respond(record, list: nil, insert: DEFAULT_OPTION, success_message: nil,
                       failure_status: :unprocessable_entity, redirect_to: nil, replace: :row, row_partial: nil)
       was_new_record = record.new_record?
-      validate_insert_option!(insert)
+      operation = was_new_record ? :create : :update
+      resolved_insert = insert.equal?(DEFAULT_OPTION) ? turbo_crud_default_insert_for(record) : insert
+      resolved_row_partial = row_partial || turbo_crud_default_row_partial_for(record)
+
+      validate_insert_option!(resolved_insert)
       validate_replace_option!(replace)
       validate_list_option!(list, method_name: :turbo_respond) if was_new_record
 
       if record.save
+        instrument_turbo_crud(operation, record: record, success: true, insert: resolved_insert, replace: replace)
         respond_to do |format|
           format.turbo_stream do
             render turbo_stream: turbo_success_streams(
               record,
               list: list,
-              insert: insert,
+              insert: resolved_insert,
               replace: was_new_record ? nil : replace,
               success_message: success_message,
               updating: !was_new_record,
-              row_partial: row_partial
+              row_partial: resolved_row_partial
             )
           end
           format.html { redirect_to(redirect_to || record, notice: success_message, allow_other_host: false) }
         end
       else
+        instrument_turbo_crud(operation, record: record, success: false, error_count: record.errors.count)
         # 😬 Validation errors. Record said: "Nope. Try again, human."
         respond_to do |format|
           # If record is new, render :new; else render :edit.
@@ -69,7 +76,7 @@ module TurboCrud
     # turbo_save (v0.3)
     # ------------------------------------------------------------
     # Convenience wrapper: calls turbo_create or turbo_update.
-    def turbo_save(record, list:, insert: TurboCrud.config.default_insert, success_message: nil,
+    def turbo_save(record, list:, insert: DEFAULT_OPTION, success_message: nil,
                    failure_status: :unprocessable_entity, redirect_to: nil, replace: :row, row_partial: nil)
       if record.persisted?
         turbo_update(record, success_message: success_message, failure_status: failure_status, redirect_to: redirect_to, replace: replace, row_partial: row_partial)
@@ -81,27 +88,32 @@ module TurboCrud
     # ------------------------------------------------------------
     # turbo_create
     # ------------------------------------------------------------
-    def turbo_create(record, list:, insert: TurboCrud.config.default_insert, success_message: nil,
+    def turbo_create(record, list:, insert: DEFAULT_OPTION, success_message: nil,
                      failure_status: :unprocessable_entity, redirect_to: nil, row_partial: nil)
+      resolved_insert = insert.equal?(DEFAULT_OPTION) ? turbo_crud_default_insert_for(record) : insert
+      resolved_row_partial = row_partial || turbo_crud_default_row_partial_for(record)
+
       validate_list_option!(list, method_name: :turbo_create)
-      validate_insert_option!(insert)
+      validate_insert_option!(resolved_insert)
 
       if record.save
+        instrument_turbo_crud(:create, record: record, success: true, insert: resolved_insert)
         respond_to do |format|
           format.turbo_stream do
             render turbo_stream: turbo_success_streams(
               record,
               list: list,
-              insert: insert,
+              insert: resolved_insert,
               replace: nil, # create inserts; we don't replace by default
               success_message: success_message,
               updating: false,
-              row_partial: row_partial
+              row_partial: resolved_row_partial
             )
           end
           format.html { redirect_to(redirect_to || record, notice: success_message, allow_other_host: false) }
         end
       else
+        instrument_turbo_crud(:create, record: record, success: false, error_count: record.errors.count)
         respond_to do |format|
           format.turbo_stream { render(**turbo_crud_template_for(:new), formats: :html, status: failure_status) }
           format.html { render :new, status: failure_status }
@@ -113,9 +125,11 @@ module TurboCrud
     # turbo_update
     # ------------------------------------------------------------
     def turbo_update(record, success_message: nil, failure_status: :unprocessable_entity, redirect_to: nil, replace: :row, row_partial: nil)
+      resolved_row_partial = row_partial || turbo_crud_default_row_partial_for(record)
       validate_replace_option!(replace)
 
       if record.save
+        instrument_turbo_crud(:update, record: record, success: true, replace: replace)
         respond_to do |format|
           format.turbo_stream do
             render turbo_stream: turbo_success_streams(
@@ -125,12 +139,13 @@ module TurboCrud
               replace: replace,
               success_message: success_message,
               updating: true,
-              row_partial: row_partial
+              row_partial: resolved_row_partial
             )
           end
           format.html { redirect_to(redirect_to || record, notice: success_message, allow_other_host: false) }
         end
       else
+        instrument_turbo_crud(:update, record: record, success: false, error_count: record.errors.count, replace: replace)
         respond_to do |format|
           format.turbo_stream { render(**turbo_crud_template_for(:edit), formats: :html, status: failure_status) }
           format.html { render :edit, status: failure_status }
@@ -144,6 +159,7 @@ module TurboCrud
     def turbo_destroy(record, list:, success_message: nil, redirect_to: nil)
       validate_list_option!(list, method_name: :turbo_destroy)
       record.destroy
+      instrument_turbo_crud(:destroy, record: record, success: true, destroyed: record.destroyed?)
 
       respond_to do |format|
         format.turbo_stream do
@@ -187,9 +203,9 @@ module TurboCrud
     # ------------------------------------------------------------
     # We try (in order):
     # 1) row_partial argument (if provided)
-    # 2) TurboCrud.config.row_partial (if not :auto)
-    # 3) "<collection>/row"
-    # 4) "<collection>/<element>"   (ex: "posts/post") — common existing Rails partial
+    # 2) "<collection>/row"
+    # 3) "<collection>/<element>"   (ex: "posts/post") — common existing Rails partial
+    # 4) TurboCrud.config.row_partial (if compatible and not :auto)
     #
     # This lets TurboCrud work with existing apps without forcing `_row`.
     def turbo_row_partial_for(record, preferred: nil)
@@ -247,18 +263,33 @@ module TurboCrud
       candidates = []
       candidates << preferred if preferred.present?
 
-      config_pref = TurboCrud.config.row_partial
-      if config_pref.present? && config_pref.to_sym != :auto
-        candidates << config_pref.to_s
-      end
-
       candidates << "#{collection}/row"
       candidates << "#{collection}/#{element}"
+
+      config_pref = TurboCrud.config.row_partial
+      if config_pref.present? && config_pref.to_sym != :auto
+        config_partial = config_pref.to_s
+        # Global row_partial can leak across resources (e.g. blogs/blog on nogs).
+        # Keep it as a final fallback and only when path shape looks compatible.
+        candidates << config_partial if row_partial_compatible_with_record?(config_partial, collection, element)
+      end
+
       candidates.uniq
+    end
+
+    def row_partial_compatible_with_record?(partial_path, collection, element)
+      basename = File.basename(partial_path)
+      dirname = File.dirname(partial_path)
+
+      return true if basename == "row" || basename == element
+      return true if dirname == collection || dirname.start_with?("shared")
+
+      false
     end
 
     def raise_missing_row_partial!(record, preferred:)
       candidates = turbo_row_partial_candidates(record, preferred: preferred)
+      instrument_turbo_crud(:row_partial_missing, record: record, success: false, candidates: candidates)
       raise TurboCrud::MissingRowPartialError,
             "Could not find a row partial for #{record.class.name}. Tried: #{candidates.join(', ')}. " \
             "Set `row_partial:` or configure `TurboCrud.config.row_partial`."
@@ -301,6 +332,28 @@ module TurboCrud
       helper_frame_id = turbo_frame_request_id if respond_to?(:turbo_frame_request_id, true)
 
       helper_frame_id || request.headers["Turbo-Frame"] || request.get_header("HTTP_TURBO_FRAME") || params[:turbo_frame]
+    end
+
+    # Centralized instrumentation keeps payload shape stable for logs/metrics.
+    def instrument_turbo_crud(event, record:, **payload)
+      base_payload = {
+        controller: self.class.name,
+        action: action_name,
+        request_format: request.format.to_s,
+        model: record.class.name,
+        id: record.id,
+        persisted: record.persisted?
+      }
+
+      ActiveSupport::Notifications.instrument("turbo_crud.#{event}", base_payload.merge(payload))
+    end
+
+    def turbo_crud_default_insert_for(record)
+      TurboCrud.model_default_for(record, :insert) || TurboCrud.config.default_insert
+    end
+
+    def turbo_crud_default_row_partial_for(record)
+      TurboCrud.model_default_for(record, :row_partial)
     end
   end
 end

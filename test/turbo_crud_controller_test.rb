@@ -62,4 +62,72 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
     assert_equal 500, response.status
     assert_request_exception(TurboCrud::MissingRowPartialError, "Could not find a row partial")
   end
+
+  def test_create_emits_notification_payload
+    payloads = []
+    subscriber = ActiveSupport::Notifications.subscribe("turbo_crud.create") do |_name, _start, _finish, _id, payload|
+      payloads << payload
+    end
+
+    post "/posts", params: { title: "Hello", body: "World" }, headers: { "Accept" => TURBO_STREAM }
+
+    assert_equal 200, response.status
+    assert_equal true, payloads.last[:success]
+    assert_equal "Post", payloads.last[:model]
+    assert_equal "PostsController", payloads.last[:controller]
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
+  end
+
+  def test_create_validation_failure_emits_notification_payload
+    payloads = []
+    subscriber = ActiveSupport::Notifications.subscribe("turbo_crud.create") do |_name, _start, _finish, _id, payload|
+      payloads << payload
+    end
+
+    post "/posts", params: { title: "", body: "World" }, headers: { "Accept" => TURBO_STREAM }
+
+    assert_equal 422, response.status
+    assert_equal false, payloads.last[:success]
+    assert_operator payloads.last[:error_count], :>=, 1
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
+  end
+
+  def test_incompatible_global_row_partial_falls_back_to_model_partial
+    previous = TurboCrud.config.row_partial
+    TurboCrud.config.row_partial = "blogs/blog"
+
+    post "/posts/auto_row_partial", params: { title: "Hello", body: "World" }, headers: { "Accept" => TURBO_STREAM }
+
+    assert_equal 200, response.status
+    assert_includes response.body, "target=\"posts_list\""
+    assert_includes response.body, "Hello"
+  ensure
+    TurboCrud.config.row_partial = previous
+  end
+
+  def test_model_defaults_insert_overrides_global_insert
+    previous = TurboCrud.config.model_defaults
+    TurboCrud.config.model_defaults = { "Post" => { insert: :append } }
+
+    post "/posts/auto_row_partial", params: { title: "Hello", body: "World" }, headers: { "Accept" => TURBO_STREAM }
+
+    assert_equal 200, response.status
+    assert_includes response.body, "action=\"append\""
+  ensure
+    TurboCrud.config.model_defaults = previous
+  end
+
+  def test_model_defaults_row_partial_overrides_auto_resolution
+    previous = TurboCrud.config.model_defaults
+    TurboCrud.config.model_defaults = { "Post" => { row_partial: "posts/post" } }
+
+    post "/posts/auto_row_partial", params: { title: "Hello", body: "World" }, headers: { "Accept" => TURBO_STREAM }
+
+    assert_equal 200, response.status
+    assert_includes response.body, "from_post_partial:Hello"
+  ensure
+    TurboCrud.config.model_defaults = previous
+  end
 end

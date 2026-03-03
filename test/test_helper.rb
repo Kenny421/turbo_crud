@@ -85,6 +85,11 @@ class PostsController < ActionController::Base
     @post = Post.new(title: params[:title], body: params[:body])
     turbo_create(@post, list: Post, row_partial: "posts/does_not_exist", success_message: "created!")
   end
+
+  def create_with_auto_row_partial
+    @post = Post.new(title: params[:title], body: params[:body])
+    turbo_create(@post, list: Post, success_message: "created!")
+  end
 end
 
 DummyApp.routes.draw do
@@ -93,4 +98,5 @@ DummyApp.routes.draw do
   post "/posts/invalid_insert", to: "posts#create_invalid_insert"
   patch "/posts/:id/invalid_replace", to: "posts#update_invalid_replace"
   post "/posts/bad_row_partial", to: "posts#create_bad_row_partial"
+  post "/posts/auto_row_partial", to: "posts#create_with_auto_row_partial"
 end
