@@ -4,6 +4,8 @@ module TurboCrud
   module Controller
     extend ActiveSupport::Concern
     DEFAULT_OPTION = Object.new
+    AUTO_AUTHORIZE = Object.new
+    RESOURCE_ACTIONS = %i[index new create edit update destroy].freeze
 
     included do
       # 👋 Hello controller! I will:
@@ -11,6 +13,142 @@ module TurboCrud
       # - make Turbo Stream responses consistent
       # - and reduce copy/paste tears
       helper TurboCrud::Helpers if respond_to?(:helper)
+    end
+
+    class_methods do
+      def turbo_crud_resource(model_class, scope: nil, permit:, authorize_with: AUTO_AUTHORIZE, container: nil, list: nil, only: nil, except: nil)
+        raise ArgumentError, "turbo_crud_resource requires a model class" unless model_class.respond_to?(:model_name)
+
+        permits = Array(permit).map(&:to_sym)
+        raise ArgumentError, "turbo_crud_resource requires `permit:` with at least one attribute" if permits.empty?
+
+        normalized_auth = normalize_turbo_crud_authorizer(authorize_with)
+        normalized_container = normalize_turbo_crud_container(container)
+
+        config = {
+          model: model_class,
+          scope: scope,
+          permit: permits,
+          authorize_with: normalized_auth,
+          container: normalized_container,
+          list: list || model_class
+        }.freeze
+
+        class_attribute :turbo_crud_resource_config, instance_writer: false unless respond_to?(:turbo_crud_resource_config)
+        self.turbo_crud_resource_config = config
+
+        apply_turbo_crud_model_container_default!(model_class, normalized_container) if normalized_container
+
+        actions = RESOURCE_ACTIONS.dup
+        actions &= Array(only).map(&:to_sym) if only
+        actions -= Array(except).map(&:to_sym) if except
+
+        define_turbo_crud_resource_actions(actions)
+      end
+
+      private
+
+      def define_turbo_crud_resource_actions(actions)
+        if actions.include?(:index)
+          define_method(:index) do
+            config = self.class.turbo_crud_resource_config
+            model = config.fetch(:model)
+            collection_ivar = "@#{model.model_name.collection}"
+            turbo_crud_authorize_resource!(config, :index, model)
+            records = turbo_crud_resource_scope(config)
+            instance_variable_set(collection_ivar, records)
+            render :index
+          end
+        end
+
+        if actions.include?(:new)
+          define_method(:new) do
+            config = self.class.turbo_crud_resource_config
+            model = config.fetch(:model)
+            member_ivar = "@#{model.model_name.element}"
+            record = model.new
+            turbo_crud_authorize_resource!(config, :new, record)
+            instance_variable_set(member_ivar, record)
+            render(**turbo_crud_template_for(:new))
+          end
+        end
+
+        if actions.include?(:create)
+          define_method(:create) do
+            config = self.class.turbo_crud_resource_config
+            model = config.fetch(:model)
+            member_ivar = "@#{model.model_name.element}"
+            record = model.new(turbo_crud_resource_params(config))
+            turbo_crud_authorize_resource!(config, :create, record)
+            instance_variable_set(member_ivar, record)
+            turbo_create(record, list: config[:list])
+          end
+        end
+
+        if actions.include?(:edit)
+          define_method(:edit) do
+            config = self.class.turbo_crud_resource_config
+            model = config.fetch(:model)
+            member_ivar = "@#{model.model_name.element}"
+            record = turbo_crud_find_resource_record(config)
+            turbo_crud_authorize_resource!(config, :edit, record)
+            instance_variable_set(member_ivar, record)
+            render(**turbo_crud_template_for(:edit))
+          end
+        end
+
+        if actions.include?(:update)
+          define_method(:update) do
+            config = self.class.turbo_crud_resource_config
+            model = config.fetch(:model)
+            member_ivar = "@#{model.model_name.element}"
+            record = turbo_crud_find_resource_record(config)
+            turbo_crud_authorize_resource!(config, :update, record)
+            record.assign_attributes(turbo_crud_resource_params(config))
+            instance_variable_set(member_ivar, record)
+            turbo_update(record)
+          end
+        end
+
+        if actions.include?(:destroy)
+          define_method(:destroy) do
+            config = self.class.turbo_crud_resource_config
+            model = config.fetch(:model)
+            member_ivar = "@#{model.model_name.element}"
+            record = turbo_crud_find_resource_record(config)
+            turbo_crud_authorize_resource!(config, :destroy, record)
+            instance_variable_set(member_ivar, record)
+            turbo_destroy(record, list: config[:list])
+          end
+        end
+      end
+
+      def normalize_turbo_crud_authorizer(authorizer)
+        return :auto if authorizer.equal?(AUTO_AUTHORIZE)
+        return nil if authorizer.nil?
+
+        normalized = authorizer.to_sym
+        return normalized if %i[pundit cancancan].include?(normalized)
+
+        raise ArgumentError, "Invalid `authorize_with:` #{authorizer.inspect}. Use :pundit, :cancancan, or nil."
+      end
+
+      def normalize_turbo_crud_container(container)
+        return nil if container.nil?
+
+        normalized = container.to_sym
+        return normalized if %i[modal drawer].include?(normalized)
+
+        raise ArgumentError, "Invalid `container:` #{container.inspect}. Use :modal, :drawer, or nil."
+      end
+
+      def apply_turbo_crud_model_container_default!(model_class, container)
+        defaults = TurboCrud.config.model_defaults.dup
+        model_defaults = (defaults[model_class.name] || {}).dup
+        model_defaults[:container] = container
+        defaults[model_class.name] = model_defaults
+        TurboCrud.config.model_defaults = defaults
+      end
     end
 
     # ------------------------------------------------------------
@@ -326,6 +464,67 @@ module TurboCrud
       end
 
       { action: action }
+    end
+
+    def turbo_crud_resource_scope(config)
+      scope = config[:scope]
+      records =
+        case scope
+        when nil
+          config[:model].all
+        when Proc
+          instance_exec(&scope)
+        else
+          scope
+        end
+
+      if records.respond_to?(:all) && !records.respond_to?(:to_ary)
+        records.all
+      else
+        records
+      end
+    end
+
+    def turbo_crud_find_resource_record(config)
+      records = turbo_crud_resource_scope(config)
+      return records.find(params[:id]) if records.respond_to?(:find)
+
+      config[:model].find(params[:id])
+    end
+
+    def turbo_crud_resource_params(config)
+      params.require(config[:model].model_name.param_key).permit(*config[:permit])
+    end
+
+    def turbo_crud_authorize_resource!(config, action, resource)
+      strategy = turbo_crud_authorizer_strategy(config[:authorize_with])
+
+      case strategy
+      when nil
+        nil
+      when :pundit
+        unless respond_to?(:authorize, true)
+          raise NotImplementedError, "authorize_with: :pundit requires an `authorize` method (include Pundit::Authorization)."
+        end
+        authorize(resource)
+      when :cancancan
+        unless respond_to?(:authorize!, true)
+          raise NotImplementedError, "authorize_with: :cancancan requires an `authorize!` method (include CanCan::ControllerAdditions)."
+        end
+        authorize!(action, resource)
+      else
+        raise ArgumentError, "Unsupported authorizer: #{strategy.inspect}"
+      end
+    end
+
+    def turbo_crud_authorizer_strategy(config_value)
+      return config_value unless config_value == :auto
+
+      # Prefer CanCanCan when both are present to keep behavior deterministic.
+      return :cancancan if respond_to?(:authorize!, true)
+      return :pundit if respond_to?(:authorize, true)
+
+      nil
     end
 
     def turbo_crud_requested_frame_id

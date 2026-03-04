@@ -133,6 +133,148 @@ TurboCrud will decide whether to insert (create) or replace (update).
 
 ---
 
+## Resource DSL (`turbo_crud_resource`)
+
+You can generate standard CRUD actions with one declaration:
+
+```ruby
+class PostsController < ApplicationController
+  include TurboCrud::Controller
+
+  turbo_crud_resource Post,
+    scope: -> { Post.order(created_at: :desc) },
+    permit: %i[title body published],
+    authorize_with: :pundit, # :pundit, :cancancan, :nil, or omit for auto-detect
+    container: :drawer
+end
+```
+
+What this sets up:
+- `index/new/create/edit/update/destroy` actions
+- strong params via `permit:`
+- `create/update/destroy` wired to TurboCrud responders
+- optional authorization adapter hooks (`authorize` / `authorize!`)
+- model-level default container (`container:`) used by `turbo_crud_form_with`
+
+Notes:
+- `permit:` is required.
+- `only:` / `except:` are supported to limit generated actions.
+- If `authorize_with:` is omitted, TurboCrud auto-detects in this order:
+  1. `authorize!` => CanCanCan
+  2. `authorize` => Pundit
+  3. none => no authorization call
+- `authorize_with: :pundit` expects `authorize`.
+- `authorize_with: :cancancan` expects `authorize!`.
+- `authorize_with: nil` explicitly disables authorization calls.
+- Your normal Rails controller permissions still apply (for example `before_action` checks in `ApplicationController`), because your controller inherits from it.
+
+If you use your own controller permissions (no Pundit/CanCanCan):
+
+```ruby
+# app/controllers/application_controller.rb
+class ApplicationController < ActionController::Base
+  before_action :authenticate_user!
+  before_action :enforce_permissions!
+
+  private
+
+  def enforce_permissions!
+    # your app's permission logic
+  end
+end
+
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+
+If you want to use default controller permissions
+
+  include TurboCrud::Controller
+  before_action :authenticate_user!, only: %i[show edit update destroy]
+before_action :enforce_permissions!
+
+  turbo_crud_resource Post,
+    scope: -> { Post.order(created_at: :desc) },
+    permit: %i[title body published],
+    authorize_with: nil
+
+     
+
+  private
+
+  def enforce_permissions!
+    # your app's permission logic
+  end
+end
+```
+
+Full controller examples:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  include TurboCrud::Controller
+  include Pundit::Authorization
+
+  # Auto-detect would also pick Pundit because `authorize` exists,
+  # but this keeps intent explicit.
+  turbo_crud_resource Post,
+    scope: -> { policy_scope(Post).order(created_at: :desc) },
+    permit: %i[title body published],
+    authorize_with: :pundit,
+    container: :drawer
+end
+
+# app/controllers/admin/posts_controller.rb
+class Admin::PostsController < ApplicationController
+  include TurboCrud::Controller
+  include CanCan::ControllerAdditions
+
+  # Omitted `authorize_with:` -> auto-detects CanCanCan (`authorize!`)
+  turbo_crud_resource Post,
+    scope: -> { Post.order(created_at: :desc) },
+    permit: %i[title body published featured]
+end
+
+# app/controllers/internal/posts_controller.rb
+class Internal::PostsController < ApplicationController
+  include TurboCrud::Controller
+
+  # Explicitly disable authorization calls from the DSL.
+  turbo_crud_resource Post,
+    scope: -> { Post.order(created_at: :desc) },
+    permit: %i[title body published],
+    authorize_with: nil
+end
+```
+
+Equivalent generated action behavior (for reference):
+
+```ruby
+class PostsController < ApplicationController
+  include TurboCrud::Controller
+
+  # This declaration generates the CRUD actions.
+  turbo_crud_resource Post, permit: %i[title body published], authorize_with: :pundit
+
+  # Rough equivalent of generated update:
+  # def update
+  #   @post = Post.find(params[:id])
+  #   authorize(@post)
+  #   @post.assign_attributes(params.require(:post).permit(:title, :body, :published))
+  #   turbo_update(@post)
+  # end
+  #
+  # Rough equivalent of generated destroy:
+  # def destroy
+  #   @post = Post.find(params[:id])
+  #   authorize(@post)
+  #   turbo_destroy(@post, list: Post)
+  # end
+end
+```
+
+---
+
 ## Validation and error behavior
 
 TurboCrud now validates key options early with clear errors:
