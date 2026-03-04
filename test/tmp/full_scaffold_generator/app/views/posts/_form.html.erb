@@ -1,20 +1,20 @@
 
 
-<%= turbo_crud_form_with model: @note, class: "space-y-4" do |f| %>
-  <% if @note.errors.any? %>
+<%= turbo_crud_form_with model: @post, class: "space-y-4" do |f| %>
+  <% if @post.errors.any? %>
     <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
       <p class="font-semibold">Please fix the errors:</p>
       <ul class="mt-2 list-disc pl-5">
-        <% @note.errors.full_messages.each do |msg| %>
+        <% @post.errors.full_messages.each do |msg| %>
           <li><%= msg %></li>
         <% end %>
       </ul>
     </div>
   <% end %>
 
-  <% preferred_types = { 'body' => 'text' } %>
+  <% preferred_types = { 'title' => 'string' } %>
 <% model_attrs = f.object.class.attribute_names - %w[id created_at updated_at] %>
-<% preferred_attrs = ['body'] %>
+<% preferred_attrs = ['title'] %>
 <% editable_attrs = if preferred_attrs.any?
                       preferred_attrs
                     else

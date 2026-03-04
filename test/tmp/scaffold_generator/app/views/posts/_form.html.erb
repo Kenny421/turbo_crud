@@ -1,0 +1,59 @@
+
+
+<%= turbo_crud_form_with model: @post, class: "space-y-4" do |f| %>
+  <% if @post.errors.any? %>
+    <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+      <p class="font-semibold">Please fix the errors:</p>
+      <ul class="mt-2 list-disc pl-5">
+        <% @post.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <% preferred_types = { 'title' => 'string' } %>
+<% model_attrs = f.object.class.attribute_names - %w[id created_at updated_at] %>
+<% preferred_attrs = ['title'] %>
+<% editable_attrs = if preferred_attrs.any?
+                      preferred_attrs
+                    else
+                      model_attrs
+                    end %>
+<% if editable_attrs.empty? %>
+  <p class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+    No editable columns found. Add model columns and run migrations, then reload this form.
+  </p>
+<% else %>
+  <% editable_attrs.each do |attr| %>
+    <% attr_type = f.object.class.type_for_attribute(attr).type rescue :string %>
+    <div>
+      <%= f.label attr, class: "block text-sm font-semibold text-slate-900" %>
+      <% field_type = (preferred_types[attr]&.to_sym || attr_type) %>
+      <% if field_type == :boolean %>
+        <div class="mt-2 flex items-center gap-2">
+          <%= f.check_box attr, class: "h-4 w-4 rounded border-slate-300" %>
+          <span class="text-sm text-slate-700"><%= attr.humanize %></span>
+        </div>
+      <% elsif field_type == :text %>
+        <%= f.text_area attr, rows: 5, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+      <% elsif [:integer, :float, :decimal].include?(field_type) %>
+        <%= f.number_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+      <% elsif field_type == :date %>
+        <%= f.date_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+      <% elsif [:datetime, :timestamp].include?(field_type) %>
+        <%= f.datetime_local_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+      <% elsif field_type == :time %>
+        <%= f.time_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+      <% else %>
+        <%= f.text_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+      <% end %>
+    </div>
+  <% end %>
+<% end %>
+
+  <div class="flex items-center justify-end gap-2 pt-2">
+    <%= link_to "Cancel", "#", data: { turbo_frame: "_top" }, class: "rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold" %>
+    <%= f.submit class: "rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" %>
+  </div>
+<% end %>

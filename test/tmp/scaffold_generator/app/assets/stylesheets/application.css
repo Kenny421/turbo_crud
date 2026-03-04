@@ -1,3 +1,6 @@
 /*
  *= require_tree .
- */
+   *= require turbo_crud
+  *= require turbo_crud_modal
+  *= require turbo_crud_drawer
+*/
