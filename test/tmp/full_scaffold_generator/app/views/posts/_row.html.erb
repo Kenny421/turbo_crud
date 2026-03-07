@@ -30,7 +30,7 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <%= turbo_crud_modal_link "Edit", edit_post_path(post),
+      <%= turbo_crud_drawer_link "Edit", edit_post_path(post),
         class: "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-50" %>
 
       <%= button_to "Delete", post_path(post),

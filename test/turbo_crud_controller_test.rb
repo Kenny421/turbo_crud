@@ -20,6 +20,7 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "turbo-stream"
     assert_includes response.body, "action=\"prepend\""
     assert_includes response.body, "target=\"posts_list\""
+    assert_includes response.body, "action=\"update\" target=\"turbo_flash\""
     assert_includes response.body, "created!"
   end
 
@@ -27,6 +28,7 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
     p = Post.create!(title: "Old")
     patch "/posts/#{p.id}", params: { title: "New" }, headers: { "Accept" => TURBO_STREAM }
     assert_equal 200, response.status
+    assert_includes response.body, "action=\"update\" target=\"turbo_flash\""
     assert_includes response.body, "updated!"
   end
 
@@ -34,7 +36,17 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
     p = Post.create!(title: "Bye")
     delete "/posts/#{p.id}", headers: { "Accept" => TURBO_STREAM }
     assert_equal 200, response.status
+    assert_includes response.body, "action=\"update\" target=\"turbo_flash\""
     assert_includes response.body, "deleted!"
+  end
+
+  def test_turbo_flash_stream_does_not_leak_stale_session_flash_when_success_message_missing
+    get "/posts/seed_flash"
+    assert_equal 200, response.status
+
+    post "/posts/no_success_message", params: { title: "Hello" }, headers: { "Accept" => TURBO_STREAM }
+    assert_equal 200, response.status
+    refute_includes response.body, "stale notice"
   end
 
   def test_turbo_respond_create_requires_list

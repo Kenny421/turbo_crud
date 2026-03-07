@@ -10,7 +10,7 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <%%= turbo_crud_modal_link "Edit", edit_<%= singular_name %>_path(<%= singular_name %>),
+      <%%= <%= edit_link_helper %> "Edit", edit_<%= singular_name %>_path(<%= singular_name %>),
         class: "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-50" %>
 
       <%%= button_to "Delete", <%= singular_name %>_path(<%= singular_name %>),

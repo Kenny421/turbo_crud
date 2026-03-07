@@ -43,6 +43,21 @@ class TurboCrudScaffoldGeneratorTest < Rails::Generators::TestCase
     assert_equal first_css, second_css
   end
 
+  def test_full_mode_auto_installs_layout_frames_and_css_requires
+    run_generator ["Post", "title:string", "--full", "--skip-model", "--skip-routes"]
+
+    layout = File.read(File.join(destination_root, "app/views/layouts/application.html.erb"))
+    css = File.read(File.join(destination_root, "app/assets/stylesheets/application.css"))
+
+    assert_includes layout, "<%= turbo_crud_flash_frame %>"
+    assert_includes layout, "<%= turbo_crud_modal_frame %>"
+    assert_includes layout, "<%= turbo_crud_drawer_frame %>"
+
+    assert_includes css, " *= require turbo_crud"
+    assert_includes css, " *= require turbo_crud_modal"
+    assert_includes css, " *= require turbo_crud_drawer"
+  end
+
   def test_no_attributes_does_not_generate_title_field
     run_generator ["Van"]
     assert_file "app/views/vans/_form.html.erb"
@@ -75,6 +90,13 @@ class TurboCrudScaffoldGeneratorTest < Rails::Generators::TestCase
     index = File.read(File.join(destination_root, "app/views/notes/index.html.erb"))
     assert_includes index, "turbo_crud_drawer_link"
     refute_includes index, "turbo_crud_modal_link"
+  end
+
+  def test_drawer_container_uses_drawer_edit_link_in_row_partial
+    run_generator ["Note", "body:text", "--container=drawer"]
+    row = File.read(File.join(destination_root, "app/views/notes/_row.html.erb"))
+    assert_includes row, "turbo_crud_drawer_link"
+    refute_includes row, "turbo_crud_modal_link"
   end
 
   def test_modal_container_new_view_uses_modal_frame

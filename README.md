@@ -1,8 +1,8 @@
-# TurboCrud (v0.4.8)
+# TurboCrud (v0.4.9)
 
-TurboCrud is a small, opinionated helper layer for Rails + Turbo that makes CRUD feel like you're speedrunning.
+TurboCrud is a small Rails + Turbo helper that makes CRUD screens easier to build and maintain.
 
-## Quick start (choose one path)
+## Quick start
 
 If you are starting new CRUD screens:
 
@@ -10,21 +10,21 @@ If you are starting new CRUD screens:
 bin/rails g turbo_crud:scaffold Post title body:text published:boolean --container=both
 ```
 
-If you already have a Rails scaffold/app and want to integrate TurboCrud:
+If you already have a Rails app and want to integrate TurboCrud:
 1. Add layout frames (`turbo_crud_flash_frame`, `turbo_crud_modal_frame`, `turbo_crud_drawer_frame`)
 2. Update controller create/update/destroy to `turbo_create`, `turbo_update`, `turbo_destroy`
 3. Render index list with `turbo_list_id(Model)` + a row partial collection
 4. Ensure row partial exists (`_row` or existing model partial like `_blog`)
 5. Wrap `new/edit` pages with `turbo_crud_container`
 
-If your modal shows `Content missing`, `new/edit` is not wrapped/rendered for Turbo frame requests.
+If you see `Content missing`, your `new/edit` templates are probably not rendering inside the expected Turbo frame/container.
 
 ## What you get
 - Consistent **Turbo Stream** responses for create/update/destroy
-- Drop-in **modal frame** + **drawer frame** + **flash frame**
+- Built-in **modal frame** + **drawer frame** + **flash frame**
 - `turbo_save` helper (create/update with one method)
 - Generator scaffold that **auto-builds form fields from attributes**
-- Test skeleton + a tiny dummy app (so you can extend it later)
+- Test coverage + a small dummy app you can extend
 
 ---
 
@@ -123,7 +123,7 @@ class PostsController < ApplicationController
 end
 ```
 
-### One-liner save (create OR update)
+### Single helper for create/update
 
 ```ruby
 turbo_save(@post, list: Post, success_message: "Saved!")
@@ -185,19 +185,14 @@ end
 
 # app/controllers/posts_controller.rb
 class PostsController < ApplicationController
-
-If you want to use default controller permissions
-
   include TurboCrud::Controller
   before_action :authenticate_user!, only: %i[show edit update destroy]
-before_action :enforce_permissions!
+  before_action :enforce_permissions!
 
   turbo_crud_resource Post,
     scope: -> { Post.order(created_at: :desc) },
     permit: %i[title body published],
     authorize_with: nil
-
-     
 
   private
 
@@ -247,7 +242,7 @@ class Internal::PostsController < ApplicationController
 end
 ```
 
-Equivalent generated action behavior (for reference):
+Equivalent generated action behavior:
 
 ```ruby
 class PostsController < ApplicationController
@@ -328,9 +323,7 @@ It generates:
 ---
 
 ## Notes
-This gem stays small on purpose.
-Big gems become “frameworks”.
-Frameworks become “why is this broken?”. 😄
+TurboCrud is intentionally small. The goal is to keep behavior predictable and integration simple, especially in existing Rails apps.
 
 ## Generator options
 
@@ -484,7 +477,7 @@ If you already have `app/views/blogs/_blog.html.erb`, you can use it directly:
 
 If you see "Content missing", it usually means your `new/edit` templates are not rendering inside TurboCrud container/frame markup.
 
-### Drawer `Content missing` quick fix
+### Drawer `Content missing` fix
 
 If this happens when clicking `turbo_crud_drawer_link`:
 
@@ -492,7 +485,22 @@ If this happens when clicking `turbo_crud_drawer_link`:
 2. Confirm `new/edit` use `turbo_crud_container` (or drawer frame wrapper).
 3. Confirm the link uses drawer target:
    - `<%= turbo_crud_drawer_link "New", new_blog_path %>`
-4. Update to latest TurboCrud and restart Rails server (new frame auto-detection logic is included).
+4. Update to the latest TurboCrud and restart the Rails server (includes frame auto-detection improvements).
+
+### Flash message does not update until refresh
+
+If create/update/delete works but the message stays on an older value:
+
+1. Ensure `application.html.erb` has exactly one `<%= turbo_crud_flash_frame %>`.
+2. Remove legacy layout flash blocks like `<%= notice %>` and `<%= alert %>`.
+3. Ensure your flash partial uses key checks so explicit Turbo locals are respected:
+
+```erb
+<% notice_message = local_assigns.key?(:notice) ? local_assigns[:notice] : flash[:notice] %>
+<% alert_message  = local_assigns.key?(:alert)  ? local_assigns[:alert]  : flash[:alert] %>
+```
+
+4. Use a TurboCrud version where flash stream updates use `update` (not `replace`), so the `turbo_flash` frame id remains targetable across requests.
 
 ### 6) Common integration mistakes
 
@@ -539,7 +547,7 @@ Per-model defaults apply to:
 
 ## Full scaffold generator (model + migration + routes + TurboCrud views)
 
-TurboCrud now includes a “batteries included” generator that creates:
+`full_scaffold` creates:
 
 - Model + migration (like `rails g model ...`)
 - Routes (`resources :things`)
@@ -555,7 +563,7 @@ Notes:
 - TurboCrud does not run `db:migrate` unless you opt in with `--migrate`.
 - If routes already exist, TurboCrud won’t double-inject them.
 
-## One generator to remember: `turbo_crud:scaffold`
+## Main generator: `turbo_crud:scaffold`
 
 By default it generates **controller + views** (no model, no routes):
 
@@ -587,7 +595,7 @@ You can ask the scaffold generator to also wire up your app layout + CSS.
 bin/rails g turbo_crud:scaffold Post title body:text --container=both --install
 ```
 
-What `--install` does (idempotent):
+What `--install` does:
 - injects these frames near the end of `app/views/layouts/application.html.erb` (before `</body>`):
   - `turbo_crud_flash_frame`
   - `turbo_crud_modal_frame`
@@ -597,7 +605,7 @@ What `--install` does (idempotent):
   - `*= require turbo_crud_modal`
   - `*= require turbo_crud_drawer`
 
-If it can’t find those files, it will print a warning with what to add manually.
+If it can’t find those files, it prints a warning with the manual steps.
 
 ---
 
@@ -658,4 +666,4 @@ ActiveSupport::Notifications.subscribe("turbo_crud.create") do |_name, _start, _
 end
 ```
 
-In most apps, put this in an initializer if you want centralized logging/metrics.
+In most apps, put this in an initializer for centralized logging/metrics.

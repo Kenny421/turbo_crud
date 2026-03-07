@@ -100,7 +100,7 @@ module TurboCrud
       end
 
       def install_if_requested
-        return unless options[:install]
+        return unless should_install?
 
         install_layout_frames
         install_sprockets_css
@@ -110,6 +110,10 @@ module TurboCrud
 
       def normalized_container
         options[:container].to_s.strip.downcase
+      end
+
+      def should_install?
+        options[:install] || options[:full]
       end
 
       # -------------------------------------------
@@ -368,6 +372,10 @@ module TurboCrud
       end
 
       def new_link_helper
+        normalized_container == "drawer" ? "turbo_crud_drawer_link" : "turbo_crud_modal_link"
+      end
+
+      def edit_link_helper
         normalized_container == "drawer" ? "turbo_crud_drawer_link" : "turbo_crud_modal_link"
       end
     end

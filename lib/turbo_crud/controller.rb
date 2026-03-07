@@ -367,7 +367,7 @@ module TurboCrud
     # turbo_flash_stream
     # ------------------------------------------------------------
     def turbo_flash_stream(notice: nil, alert: nil)
-      turbo_stream.replace(
+      turbo_stream.update(
         TurboCrud.config.flash_frame_id,
         partial: "turbo_crud/shared/flash",
         locals: { notice: notice, alert: alert }

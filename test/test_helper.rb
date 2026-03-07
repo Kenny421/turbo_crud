@@ -90,6 +90,16 @@ class PostsController < ActionController::Base
     @post = Post.new(title: params[:title], body: params[:body])
     turbo_create(@post, list: Post, success_message: "created!")
   end
+
+  def create_without_success_message
+    @post = Post.new(title: params[:title], body: params[:body])
+    turbo_create(@post, list: Post)
+  end
+
+  def seed_flash
+    flash[:notice] = "stale notice"
+    head :ok
+  end
 end
 
 class ResourcePostsController < ActionController::Base
@@ -203,4 +213,6 @@ DummyApp.routes.draw do
   patch "/posts/:id/invalid_replace", to: "posts#update_invalid_replace"
   post "/posts/bad_row_partial", to: "posts#create_bad_row_partial"
   post "/posts/auto_row_partial", to: "posts#create_with_auto_row_partial"
+  post "/posts/no_success_message", to: "posts#create_without_success_message"
+  get "/posts/seed_flash", to: "posts#seed_flash"
 end
