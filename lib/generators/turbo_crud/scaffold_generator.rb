@@ -8,10 +8,13 @@
 # - still supports: --container, --wrap-existing, --skip-model, --skip-routes
 require "rails/generators"
 require "rails/generators/named_base"
+require_relative "concerns/install_support"
 
 module TurboCrud
   module Generators
     class ScaffoldGenerator < Rails::Generators::NamedBase
+      include InstallSupport
+
       VALID_CONTAINERS = %w[modal drawer both].freeze
 
       source_root File.expand_path("templates", __dir__)
@@ -182,81 +185,6 @@ module TurboCrud
 
         say_status :invoke, "bin/rails db:migrate", :green
         rails_command "db:migrate"
-      end
-
-      # -------------------------------------------
-      # INSTALL MODE helpers (layout + CSS)
-      # -------------------------------------------
-      def install_layout_frames
-        layout_path = File.join(destination_root, "app/views/layouts/application.html.erb")
-
-        unless File.exist?(layout_path)
-          say_status :warning, "layout not found: app/views/layouts/application.html.erb", :yellow
-          say_status :info, "Add these near the end of <body>:", :blue
-          say_status :info, "<%= turbo_crud_flash_frame %>\n<%= turbo_crud_modal_frame %>\n<%= turbo_crud_drawer_frame %>", :blue
-          return
-        end
-
-        content = File.read(layout_path)
-
-        frames = [
-          "<%= turbo_crud_flash_frame %>",
-          "<%= turbo_crud_modal_frame %>",
-          "<%= turbo_crud_drawer_frame %>"
-        ]
-
-        # If already installed, do nothing.
-        if frames.all? { |line| content.include?(line) }
-          say_status :identical, "layout frames already installed", :blue
-          return
-        end
-
-        insertion = "\n  " + frames.join("\n  ") + "\n"
-
-        if content.include?("</body>")
-          inject_into_file layout_path, insertion, before: "</body>"
-          say_status :insert, "added TurboCrud frames to layout", :green
-        else
-          append_to_file layout_path, "\n#{frames.join("\n")}\n"
-          say_status :append, "appended TurboCrud frames to layout (couldn't find </body>)", :green
-        end
-      end
-
-      def install_sprockets_css
-        css_path = File.join(destination_root, "app/assets/stylesheets/application.css")
-        scss_path = File.join(destination_root, "app/assets/stylesheets/application.scss")
-
-        target = File.exist?(css_path) ? css_path : (File.exist?(scss_path) ? scss_path : nil)
-
-        unless target
-          say_status :warning, "Could not find app/assets/stylesheets/application.css (or .scss).", :yellow
-          say_status :info, "If you use Sprockets, add:", :blue
-          say_status :info, " *= require turbo_crud\n *= require turbo_crud_modal\n *= require turbo_crud_drawer", :blue
-          say_status :info, "If you use cssbundling, copy/import the gem CSS files into your pipeline.", :blue
-          return
-        end
-
-        content = File.read(target)
-        lines = [
-          " *= require turbo_crud",
-          " *= require turbo_crud_modal",
-          " *= require turbo_crud_drawer"
-        ]
-
-        if lines.all? { |l| content.include?(l) }
-          say_status :identical, "TurboCrud CSS already required", :blue
-          return
-        end
-
-        if content.include?("*/")
-          # Insert inside the Sprockets comment header.
-          inject_into_file target, lines.map { |l| " #{l}\n" }.join, before: "*/"
-          say_status :insert, "added TurboCrud requires to #{File.basename(target)}", :green
-        else
-          # Not a manifest-style file; append a helpful comment.
-          append_to_file target, "\n/* TurboCrud: if you're using Sprockets manifest style, add requires:\n#{lines.join("\n")}\n*/\n"
-          say_status :append, "appended TurboCrud CSS note to #{File.basename(target)}", :green
-        end
       end
 
       # -------------------------------------------

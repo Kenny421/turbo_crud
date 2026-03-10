@@ -1,6 +1,7 @@
-# TurboCrud (v0.4.9)
+# TurboCrud (v0.5.0)
 
-TurboCrud is a small Rails + Turbo helper that makes CRUD screens easier to build and maintain.
+TurboCrud is a small Rails + Turbo helper for people who want CRUD to feel smooth instead of fragile.
+It handles the repetitive Turbo wiring so you can focus on your app logic (and maybe drink your coffee while it’s still hot).
 
 ## Quick start
 
@@ -10,14 +11,14 @@ If you are starting new CRUD screens:
 bin/rails g turbo_crud:scaffold Post title body:text published:boolean --container=both
 ```
 
-If you already have a Rails app and want to integrate TurboCrud:
+If you already have a Rails app and want to drop TurboCrud in:
 1. Add layout frames (`turbo_crud_flash_frame`, `turbo_crud_modal_frame`, `turbo_crud_drawer_frame`)
 2. Update controller create/update/destroy to `turbo_create`, `turbo_update`, `turbo_destroy`
 3. Render index list with `turbo_list_id(Model)` + a row partial collection
 4. Ensure row partial exists (`_row` or existing model partial like `_blog`)
 5. Wrap `new/edit` pages with `turbo_crud_container`
 
-If you see `Content missing`, your `new/edit` templates are probably not rendering inside the expected Turbo frame/container.
+If you see `Content missing`, your `new/edit` views are usually rendering outside the expected Turbo frame/container.
 
 ## What you get
 - Consistent **Turbo Stream** responses for create/update/destroy
@@ -25,6 +26,16 @@ If you see `Content missing`, your `new/edit` templates are probably not renderi
 - `turbo_save` helper (create/update with one method)
 - Generator scaffold that **auto-builds form fields from attributes**
 - Test coverage + a small dummy app you can extend
+
+## Why TurboCrud
+
+| Task | Vanilla Rails + Turbo | TurboCrud |
+| --- | --- | --- |
+| Wire create/update/destroy streams | Manual per action | `turbo_create`, `turbo_update`, `turbo_destroy` |
+| Keep flash updates working in-frame | Easy to mis-wire | `turbo_crud_flash_frame` + built-in stream helpers |
+| Modal and drawer support | Custom frame plumbing | `turbo_crud_modal_link` / `turbo_crud_drawer_link` |
+| Existing app integration | Ad-hoc changes | `turbo_crud:install` + `turbo_crud:doctor` |
+| Scaffold setup | Multiple generators + custom edits | `turbo_crud:scaffold` (+ `--full` when needed) |
 
 ---
 
@@ -42,6 +53,12 @@ Then:
 bundle install
 ```
 
+Run the installer once:
+
+```bash
+bin/rails g turbo_crud:install
+```
+
 ---
 
 ## Layout setup (required)
@@ -55,13 +72,13 @@ Put these in `app/views/layouts/application.html.erb`:
 <%= turbo_crud_drawer_frame %>
 ```
 
-Put modal/drawer frames near the end of `<body>`.
+Put the modal/drawer frames near the end of `<body>` so Turbo can target them reliably.
 
 ---
 
 ## Optional initializer
 
-If you want to customize TurboCrud defaults, create:
+If you want to customize defaults, create:
 
 - `config/initializers/turbo_crud.rb` (optional)
 
@@ -129,7 +146,7 @@ end
 turbo_save(@post, list: Post, success_message: "Saved!")
 ```
 
-TurboCrud will decide whether to insert (create) or replace (update).
+TurboCrud decides whether to insert (create) or replace (update).
 
 ---
 
@@ -149,7 +166,7 @@ class PostsController < ApplicationController
 end
 ```
 
-What this sets up:
+What this gives you:
 - `index/new/create/edit/update/destroy` actions
 - strong params via `permit:`
 - `create/update/destroy` wired to TurboCrud responders
@@ -166,7 +183,7 @@ Notes:
 - `authorize_with: :pundit` expects `authorize`.
 - `authorize_with: :cancancan` expects `authorize!`.
 - `authorize_with: nil` explicitly disables authorization calls.
-- Your normal Rails controller permissions still apply (for example `before_action` checks in `ApplicationController`), because your controller inherits from it.
+- Your normal Rails controller permissions still apply (for example `before_action` checks in `ApplicationController`), because your controller still inherits from it.
 
 If you use your own controller permissions (no Pundit/CanCanCan):
 
@@ -202,7 +219,7 @@ class PostsController < ApplicationController
 end
 ```
 
-Full controller examples:
+More controller examples:
 
 ```ruby
 # app/controllers/posts_controller.rb
@@ -272,7 +289,7 @@ end
 
 ## Validation and error behavior
 
-TurboCrud now validates key options early with clear errors:
+TurboCrud validates key options early and raises clear errors:
 
 - `turbo_create` and create-path `turbo_respond` require `list:`
 - `insert:` must be `:prepend`, `:append`, or `nil`
@@ -323,7 +340,8 @@ It generates:
 ---
 
 ## Notes
-TurboCrud is intentionally small. The goal is to keep behavior predictable and integration simple, especially in existing Rails apps.
+TurboCrud is intentionally small. The goal is predictable behavior and easy integration, especially in existing Rails apps.
+Small scope, fewer surprises.
 
 ## Generator options
 
@@ -358,6 +376,7 @@ end
 ## Existing app integration (step-by-step)
 
 You can keep your existing model, routes, and form partials.
+No rewrite-from-scratch drama required.
 
 ### 1) Add layout frames once
 
@@ -487,6 +506,8 @@ If this happens when clicking `turbo_crud_drawer_link`:
    - `<%= turbo_crud_drawer_link "New", new_blog_path %>`
 4. Update to the latest TurboCrud and restart the Rails server (includes frame auto-detection improvements).
 
+If this fixed it, congrats: you and Turbo are friends again.
+
 ### Flash message does not update until refresh
 
 If create/update/delete works but the message stays on an older value:
@@ -500,7 +521,9 @@ If create/update/delete works but the message stays on an older value:
 <% alert_message  = local_assigns.key?(:alert)  ? local_assigns[:alert]  : flash[:alert] %>
 ```
 
-4. Use a TurboCrud version where flash stream updates use `update` (not `replace`), so the `turbo_flash` frame id remains targetable across requests.
+4. Use a TurboCrud version where flash stream updates use `update` (not `replace`), so the `turbo_flash` frame id stays targetable across requests.
+
+If your flash still looks haunted, run `bin/rails g turbo_crud:doctor --fix` and check for duplicate flash blocks in your layout.
 
 ### 6) Common integration mistakes
 
@@ -525,7 +548,7 @@ TurboCrud.configure do |c|
 end
 ```
 
-Tip: if your app has multiple resources, prefer passing `row_partial:` per action/controller instead of a single global path.
+Tip: if your app has multiple resources, prefer passing `row_partial:` per action/controller instead of one global path.
 
 ### Per-model defaults (recommended for multi-resource apps)
 
@@ -589,7 +612,7 @@ bin/rails g turbo_crud:scaffold Post title body:text --full --skip-routes
 
 ## Install helper (`--install`)
 
-You can ask the scaffold generator to also wire up your app layout + CSS.
+You can ask the scaffold generator to wire up your app layout + CSS too.
 
 ```bash
 bin/rails g turbo_crud:scaffold Post title body:text --container=both --install
@@ -605,7 +628,19 @@ What `--install` does:
   - `*= require turbo_crud_modal`
   - `*= require turbo_crud_drawer`
 
-If it can’t find those files, it prints a warning with the manual steps.
+If it can’t find those files, it prints a warning with manual steps.
+
+You can also use the dedicated installer:
+
+```bash
+bin/rails g turbo_crud:install
+```
+
+Optional Stimulus behavior setup:
+
+```bash
+bin/rails g turbo_crud:install --stimulus
+```
 
 ---
 
@@ -627,6 +662,20 @@ Use strict mode (non-zero exit on issues):
 ```bash
 bin/rails g turbo_crud:doctor --strict
 ```
+
+Auto-fix common setup issues (layout frames + CSS requires):
+
+```bash
+bin/rails g turbo_crud:doctor --fix
+```
+
+Auto-fix + optional Stimulus install:
+
+```bash
+bin/rails g turbo_crud:doctor --fix --stimulus
+```
+
+Think of doctor as: "scan app, find potholes, patch the obvious ones."
 
 ---
 
@@ -667,3 +716,16 @@ end
 ```
 
 In most apps, put this in an initializer for centralized logging/metrics.
+
+---
+
+## Compatibility
+
+CI runs the test suite across current Ruby/Rails combinations using the gemfiles in `gemfiles/`.
+Check `.github/workflows/test.yml` for the exact matrix used by the current release.
+
+## Releases
+
+- Changelog: `CHANGELOG.md`
+- Version policy: backward-incompatible changes are announced in the changelog before major updates.
+

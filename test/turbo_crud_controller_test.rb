@@ -32,6 +32,18 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "updated!"
   end
 
+  def test_flash_message_changes_between_create_and_update_requests
+    post "/posts", params: { title: "Hello", body: "World" }, headers: { "Accept" => TURBO_STREAM }
+    assert_equal 200, response.status
+    created_post = Post.order(:id).last
+    assert_includes response.body, "created!"
+
+    patch "/posts/#{created_post.id}", params: { title: "Hello2" }, headers: { "Accept" => TURBO_STREAM }
+    assert_equal 200, response.status
+    assert_includes response.body, "updated!"
+    refute_includes response.body, "created!"
+  end
+
   def test_destroy_renders_turbo_stream
     p = Post.create!(title: "Bye")
     delete "/posts/#{p.id}", headers: { "Accept" => TURBO_STREAM }

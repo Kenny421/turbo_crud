@@ -1,16 +1,30 @@
 # frozen_string_literal: true
 
 require "rails/generators"
+require_relative "concerns/install_support"
 
 module TurboCrud
   module Generators
     class DoctorGenerator < Rails::Generators::Base
+      include InstallSupport
+
       class_option :strict,
                    type: :boolean,
                    default: false,
                    desc: "Exit with an error when issues are found"
 
+      class_option :fix,
+                   type: :boolean,
+                   default: false,
+                   desc: "Attempt to auto-fix layout/CSS setup before checks"
+
+      class_option :stimulus,
+                   type: :boolean,
+                   default: false,
+                   desc: "With --fix, also install optional TurboCrud Stimulus controller"
+
       def run_checks
+        apply_fixes if options[:fix]
         @issues = 0
 
         # Keep output actionable and grouped so users can fix issues quickly. can be re-run after fixes to confirm. 
@@ -22,6 +36,13 @@ module TurboCrud
       end
 
       private
+      def apply_fixes
+        say_status :fix, "Applying automatic TurboCrud setup fixes", :blue
+        install_layout_frames
+        install_sprockets_css
+        install_stimulus_controller if options[:stimulus]
+      end
+
         # Each check method should call ok! or issue! to report results and increment issue count as needed.
       def check_layout_frames
         layout_path = File.join(destination_root, "app/views/layouts/application.html.erb")

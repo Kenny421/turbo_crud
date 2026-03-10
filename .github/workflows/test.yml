@@ -18,6 +18,9 @@ jobs:
           - ruby: "3.2"
             gemfile: gemfiles/rails_7_1.gemfile
             rails: "7.1"
+          - ruby: "3.2"
+            gemfile: gemfiles/rails_7_2.gemfile
+            rails: "7.2"
           - ruby: "3.3"
             gemfile: gemfiles/rails_8_0.gemfile
             rails: "8.0"

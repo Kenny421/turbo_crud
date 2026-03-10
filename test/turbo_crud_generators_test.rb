@@ -7,6 +7,7 @@ require "fileutils"
 require_relative "../lib/generators/turbo_crud/scaffold_generator"
 require_relative "../lib/generators/turbo_crud/full_scaffold_generator"
 require_relative "../lib/generators/turbo_crud/doctor_generator"
+require_relative "../lib/generators/turbo_crud/install_generator"
 
 class TurboCrudScaffoldGeneratorTest < Rails::Generators::TestCase
   tests TurboCrud::Generators::ScaffoldGenerator
@@ -210,5 +211,72 @@ class TurboCrudDoctorGeneratorTest < Rails::Generators::TestCase
     generator = TurboCrud::Generators::DoctorGenerator.new([], { "strict" => true }, destination_root: destination_root)
     error = assert_raises(Thor::Error) { generator.run_checks }
     assert_includes error.message, "TurboCrud doctor found 3 issue(s)"
+  end
+
+  def test_fix_mode_installs_layout_frames_and_css
+    FileUtils.mkdir_p(File.join(destination_root, "app/views/layouts"))
+    File.write(File.join(destination_root, "app/views/layouts/application.html.erb"), "<html><body>\n</body></html>\n")
+
+    FileUtils.mkdir_p(File.join(destination_root, "app/assets/stylesheets"))
+    File.write(File.join(destination_root, "app/assets/stylesheets/application.css"), "/*\n *= require_tree .\n */\n")
+
+    generator = TurboCrud::Generators::DoctorGenerator.new([], { "fix" => true }, destination_root: destination_root)
+    generator.run_checks
+
+    layout = File.read(File.join(destination_root, "app/views/layouts/application.html.erb"))
+    css = File.read(File.join(destination_root, "app/assets/stylesheets/application.css"))
+
+    assert_includes layout, "turbo_crud_flash_frame"
+    assert_includes layout, "turbo_crud_modal_frame"
+    assert_includes layout, "turbo_crud_drawer_frame"
+    assert_includes css, " *= require turbo_crud"
+    assert_includes css, " *= require turbo_crud_modal"
+    assert_includes css, " *= require turbo_crud_drawer"
+  end
+end
+
+class TurboCrudInstallGeneratorTest < Rails::Generators::TestCase
+  tests TurboCrud::Generators::InstallGenerator
+  destination File.expand_path("tmp/install_generator", __dir__)
+  setup :prepare_destination
+
+  def setup
+    super
+    FileUtils.mkdir_p(File.join(destination_root, "app/views/layouts"))
+    File.write(File.join(destination_root, "app/views/layouts/application.html.erb"), "<html><body>\n</body></html>\n")
+
+    FileUtils.mkdir_p(File.join(destination_root, "app/assets/stylesheets"))
+    File.write(File.join(destination_root, "app/assets/stylesheets/application.css"), "/*\n *= require_tree .\n */\n")
+  end
+
+  def test_install_generator_wires_layout_and_css
+    run_generator []
+
+    layout = File.read(File.join(destination_root, "app/views/layouts/application.html.erb"))
+    css = File.read(File.join(destination_root, "app/assets/stylesheets/application.css"))
+
+    assert_includes layout, "turbo_crud_flash_frame"
+    assert_includes layout, "turbo_crud_modal_frame"
+    assert_includes layout, "turbo_crud_drawer_frame"
+    assert_includes css, " *= require turbo_crud"
+    assert_includes css, " *= require turbo_crud_modal"
+    assert_includes css, " *= require turbo_crud_drawer"
+  end
+
+  def test_install_generator_with_stimulus_writes_and_registers_controller
+    FileUtils.mkdir_p(File.join(destination_root, "app/javascript/controllers"))
+    File.write(
+      File.join(destination_root, "app/javascript/controllers/index.js"),
+      "import { Application } from \"@hotwired/stimulus\"\nconst application = Application.start()\n"
+    )
+
+    run_generator ["--stimulus"]
+
+    controller = File.read(File.join(destination_root, "app/javascript/controllers/turbo_crud_controller.js"))
+    index_js = File.read(File.join(destination_root, "app/javascript/controllers/index.js"))
+
+    assert_includes controller, "export default class extends Controller"
+    assert_includes index_js, "import TurboCrudController from \"./turbo_crud_controller\""
+    assert_includes index_js, "application.register(\"turbo-crud\", TurboCrudController)"
   end
 end
