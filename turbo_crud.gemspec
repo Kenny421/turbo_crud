@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
   spec.license       = "MIT"
   spec.required_ruby_version = ">= 3.1.0"
 
-  # 🔥 IMPORTANT: makes your gem look professional on RubyGems
+  # 🔥 IMPORTANT: makes my gem look professional on RubyGems
   spec.metadata = {
     "source_code_uri" => "https://github.com/kenny421/turbo_crud",
     "changelog_uri" => "https://github.com/kenny421/turbo_crud/releases",
