@@ -96,6 +96,22 @@ TurboCrud.configure do |c|
   c.model_defaults = {
     "Blog" => { row_partial: "blogs/blog", container: :drawer, insert: :append }
   }
+
+  # Flash rendering:
+  # :default      => TurboCrud built-in flash partial
+  # :app          => render app partial "shared/flash"
+  #                  (auto-wrapped in TurboCrud flash container if your partial is minimal)
+  # :off          => disable flash rendering in Turbo stream updates
+  # "path/flash"  => custom partial path
+  # ->(view, messages:) { ... } => custom renderer proc
+  # c.flash_renderer = :app
+
+  # Flash placement:
+  # :top_right (default), :top_center, :inline
+  # c.flash_position = :top_right
+
+  # Auto-hide delay in ms (nil to disable)
+  # c.flash_auto_hide_ms = 4500
 end
 ```
 
@@ -112,7 +128,27 @@ Add:
  */
 ```
 
-(If you're on cssbundling/importmap, copy these CSS files into your app or import them.)
+## CSS (Rails 8 / Propshaft / cssbundling)
+If your `application.css` is plain CSS (no Sprockets manifest block), use imports instead:
+
+```css
+@import "turbo_crud.css";
+@import "turbo_crud_modal.css";
+@import "turbo_crud_drawer.css";
+```
+
+`turbo_crud:install` now detects this and appends `@import` lines automatically.
+
+If your browser shows `404` for these imports in Rails 8, load the TurboCrud stylesheets directly in layout instead:
+
+```erb
+<%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+<%= stylesheet_link_tag "turbo_crud", "data-turbo-track": "reload" %>
+<%= stylesheet_link_tag "turbo_crud_modal", "data-turbo-track": "reload" %>
+<%= stylesheet_link_tag "turbo_crud_drawer", "data-turbo-track": "reload" %>
+```
+
+Then remove the `@import "turbo_crud*.css"` lines from `application.css` to avoid duplicate requests.
 
 ---
 
@@ -623,10 +659,15 @@ What `--install` does:
   - `turbo_crud_flash_frame`
   - `turbo_crud_modal_frame`
   - `turbo_crud_drawer_frame`
-- tries to add Sprockets requires to `app/assets/stylesheets/application.css`:
-  - `*= require turbo_crud`
-  - `*= require turbo_crud_modal`
-  - `*= require turbo_crud_drawer`
+- updates `app/assets/stylesheets/application.css`:
+  - if Sprockets manifest style is detected, adds:
+    - `*= require turbo_crud`
+    - `*= require turbo_crud_modal`
+    - `*= require turbo_crud_drawer`
+  - otherwise appends:
+    - `@import "turbo_crud.css";`
+    - `@import "turbo_crud_modal.css";`
+    - `@import "turbo_crud_drawer.css";`
 
 If it can’t find those files, it prints a warning with manual steps.
 
@@ -728,4 +769,3 @@ Check `.github/workflows/test.yml` for the exact matrix used by the current rele
 
 - Changelog: `CHANGELOG.md`
 - Version policy: backward-incompatible changes are announced in the changelog before major updates.
-

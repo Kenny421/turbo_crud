@@ -63,15 +63,19 @@ class TurboCrudScaffoldGeneratorTest < Rails::Generators::TestCase
     run_generator ["Van"]
     assert_file "app/views/vans/_form.html.erb"
     assert_file "app/views/vans/_row.html.erb"
+    assert_file "app/views/vans/index.html.erb"
     assert_file "app/controllers/vans_controller.rb"
     form = File.read(File.join(destination_root, "app/views/vans/_form.html.erb"))
     row = File.read(File.join(destination_root, "app/views/vans/_row.html.erb"))
+    index = File.read(File.join(destination_root, "app/views/vans/index.html.erb"))
     controller = File.read(File.join(destination_root, "app/controllers/vans_controller.rb"))
     refute_includes form, "f.label :title"
     refute_includes form, "f.text_field :title"
     assert_includes form, "editable_attrs = if preferred_attrs.any?"
     assert_includes form, "model_attrs = f.object.class.attribute_names - %w[id created_at updated_at]"
     assert_includes form, "No editable columns found. Add model columns and run migrations"
+    assert_includes index, "turbo_list_id(Van)}_empty_state"
+    assert_includes index, "No records yet"
     assert_includes row, "attributes.except('id', 'created_at', 'updated_at').values.find(&:present?)"
     refute_includes row, '##{van.id}'
     assert_includes controller, "safe_van_attrs"
@@ -263,6 +267,20 @@ class TurboCrudInstallGeneratorTest < Rails::Generators::TestCase
     assert_includes css, " *= require turbo_crud_drawer"
   end
 
+  def test_install_generator_writes_css_imports_for_non_sprockets_stylesheet
+    File.write(
+      File.join(destination_root, "app/assets/stylesheets/application.css"),
+      "body { font-family: sans-serif; }\n"
+    )
+
+    run_generator []
+
+    css = File.read(File.join(destination_root, "app/assets/stylesheets/application.css"))
+    assert_includes css, "@import \"turbo_crud.css\";"
+    assert_includes css, "@import \"turbo_crud_modal.css\";"
+    assert_includes css, "@import \"turbo_crud_drawer.css\";"
+  end
+
   def test_install_generator_with_stimulus_writes_and_registers_controller
     FileUtils.mkdir_p(File.join(destination_root, "app/javascript/controllers"))
     File.write(
@@ -273,10 +291,15 @@ class TurboCrudInstallGeneratorTest < Rails::Generators::TestCase
     run_generator ["--stimulus"]
 
     controller = File.read(File.join(destination_root, "app/javascript/controllers/turbo_crud_controller.js"))
+    flash_controller = File.read(File.join(destination_root, "app/javascript/controllers/turbo_crud_flash_controller.js"))
     index_js = File.read(File.join(destination_root, "app/javascript/controllers/index.js"))
 
     assert_includes controller, "export default class extends Controller"
+    assert_includes flash_controller, "export default class extends Controller"
+    assert_includes flash_controller, "dismiss(event)"
     assert_includes index_js, "import TurboCrudController from \"./turbo_crud_controller\""
+    assert_includes index_js, "import TurboCrudFlashController from \"./turbo_crud_flash_controller\""
     assert_includes index_js, "application.register(\"turbo-crud\", TurboCrudController)"
+    assert_includes index_js, "application.register(\"turbo-crud-flash\", TurboCrudFlashController)"
   end
 end

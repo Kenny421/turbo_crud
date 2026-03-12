@@ -1,25 +1,127 @@
 /* TurboCrud minimal flash styles (override in your app). */
 /* Goal: good defaults, no extra JavaScript, no drama. */
 
-.turbo-crud__flash{
+.turbo-crud__flash-frame,
+turbo-frame.turbo-crud__flash-frame {
+  display: contents;
+}
+
+.turbo-crud__flash-stack {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.turbo-crud__flash-frame--top-right .turbo-crud__flash-stack {
   position: fixed;
-  right: 1rem;
   top: 1rem;
+  right: 1rem;
   z-index: 9999;
-  max-width: min(92vw, 480px);
-  padding: 0.75rem 1rem;
+  width: min(calc(100vw - 2rem), 520px);
+}
+
+.turbo-crud__flash-frame--top-center .turbo-crud__flash-stack {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  width: min(calc(100vw - 2rem), 72rem);
+  justify-items: end;
+}
+
+.turbo-crud__flash-frame--inline .turbo-crud__flash-stack {
+  position: static;
+  width: min(100%, 72rem);
+  margin: 0.75rem auto 0;
+  padding: 0 1rem;
+}
+
+.turbo-crud__flash{
+  width: min(100%, 520px);
+  padding: 0.75rem 0.9rem;
   border-radius: 1rem;
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border: 1px solid transparent;
   font-size: 0.9rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.turbo-crud__flash-icon {
+  display: inline-flex;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 9999px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.turbo-crud__flash-text {
+  min-width: 0;
+}
+
+.turbo-crud__flash-close {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 9999px;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.turbo-crud__flash-close:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.turbo-crud__flash-close:focus-visible {
+  outline: 2px solid rgba(15, 23, 42, 0.4);
+  outline-offset: 2px;
 }
 
 /* Green-ish “nice job” */
-.turbo-crud__flash--notice{ background: rgba(16, 185, 129, 0.12); }
+.turbo-crud__flash--notice{
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #065f46;
+}
+
+.turbo-crud__flash--notice .turbo-crud__flash-icon {
+  background: rgba(16, 185, 129, 0.18);
+}
 
 /* Red-ish “uh oh” */
-.turbo-crud__flash--alert{ background: rgba(244, 63, 94, 0.12); }
+.turbo-crud__flash--alert{
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #9f1239;
+}
+
+.turbo-crud__flash--alert .turbo-crud__flash-icon {
+  background: rgba(244, 63, 94, 0.2);
+}
+
+.turbo-crud__flash--warning {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #92400e;
+}
+
+.turbo-crud__flash--warning .turbo-crud__flash-icon {
+  background: rgba(245, 158, 11, 0.2);
+}
 
 /* Form loading hint while Turbo request is in-flight. */
 form[data-turbo-crud-loading="true"] {

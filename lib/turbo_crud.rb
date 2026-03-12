@@ -17,7 +17,8 @@ module TurboCrud
   # Config stays small to stay sane. 🧘‍♂️
   class Configuration
     attr_accessor :modal_frame_id, :drawer_frame_id, :flash_frame_id,
-                  :default_insert, :default_container, :row_partial, :model_defaults
+                  :default_insert, :default_container, :row_partial, :model_defaults,
+                  :flash_renderer, :flash_levels, :flash_auto_hide_ms, :flash_position
 
     def initialize
       # Where modal content gets swapped in.
@@ -46,6 +47,30 @@ module TurboCrud
       #   "Blog" => { row_partial: "blogs/blog", container: :drawer, insert: :append }
       # }
       @model_defaults = {}
+
+      # How flash UI is rendered:
+      # - nil / :default => built-in partial
+      # - :app / :rails_default => render app partial "shared/flash"
+      # - :off / :none => disable flash rendering in Turbo stream updates
+      # - "path/to/partial" => custom partial
+      # - Proc => called with (view_context, messages:)
+      @flash_renderer = :default
+
+      # Map incoming flash keys to UI levels.
+      @flash_levels = {
+        notice: :notice,
+        alert: :alert,
+        success: :success,
+        error: :error,
+        warning: :warning
+      }
+
+      # Optional auto-dismiss delay used by Stimulus controller (ms). nil disables auto-hide.
+      @flash_auto_hide_ms = 4500
+
+      # Flash placement:
+      # :top_right (default), :top_center, :inline
+      @flash_position = :top_right
     end
   end
 

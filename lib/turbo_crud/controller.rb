@@ -301,10 +301,12 @@ module TurboCrud
 
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: [
+          streams = [
             turbo_stream.remove(view_context.dom_id(record)),
             turbo_flash_stream(notice: success_message)
-          ].compact
+          ]
+          streams << turbo_empty_state_stream(list) if turbo_list_empty?(list)
+          render turbo_stream: streams.compact
         end
         format.html { redirect_to(redirect_to || polymorphic_url(list), notice: success_message, allow_other_host: false) }
       end
@@ -320,6 +322,7 @@ module TurboCrud
 
       # 🧩 Insert new row into list container when creating.
       if !updating && list && insert
+        streams << turbo_stream.remove(turbo_list_empty_state_id(list))
         streams << turbo_stream_action_for_insert(insert, list, record, row_partial: row_partial)
       end
 
@@ -367,10 +370,16 @@ module TurboCrud
     # turbo_flash_stream
     # ------------------------------------------------------------
     def turbo_flash_stream(notice: nil, alert: nil)
+      messages =
+        if notice.nil? && alert.nil?
+          []
+        else
+          view_context.turbo_crud_flash_messages(notice: notice, alert: alert)
+        end
+
       turbo_stream.update(
         TurboCrud.config.flash_frame_id,
-        partial: "turbo_crud/shared/flash",
-        locals: { notice: notice, alert: alert }
+        view_context.turbo_crud_render_flash(messages: messages)
       )
     end
 
@@ -392,6 +401,38 @@ module TurboCrud
       end
     rescue ActionView::MissingTemplate
       raise_missing_row_partial!(record, preferred: row_partial)
+    end
+
+    def turbo_list_empty_state_id(list)
+      "#{view_context.turbo_list_id(list)}_empty_state"
+    end
+
+    def turbo_list_empty?(list)
+      return !list.exists? if list.respond_to?(:exists?)
+
+      klass = list.respond_to?(:klass) ? list.klass : nil
+      return !klass.exists? if klass.respond_to?(:exists?)
+
+      false
+    end
+
+    def turbo_empty_state_stream(list)
+      turbo_stream.append(
+        view_context.turbo_list_id(list),
+        turbo_empty_state_markup(list)
+      )
+    end
+
+    def turbo_empty_state_markup(list)
+      view_context.tag.div(
+        id: turbo_list_empty_state_id(list),
+        class: "rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center"
+      ) do
+        view_context.tag.p(
+          "No records yet",
+          class: "text-sm font-semibold uppercase tracking-wide text-slate-500"
+        )
+      end
     end
 
     def turbo_row_partial_candidates(record, preferred:)

@@ -18,6 +18,7 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
     assert_equal 200, response.status
     assert_includes response.media_type, "text/vnd.turbo-stream"
     assert_includes response.body, "turbo-stream"
+    assert_includes response.body, "action=\"remove\" target=\"posts_list_empty_state\""
     assert_includes response.body, "action=\"prepend\""
     assert_includes response.body, "target=\"posts_list\""
     assert_includes response.body, "action=\"update\" target=\"turbo_flash\""
@@ -45,9 +46,12 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
   end
 
   def test_destroy_renders_turbo_stream
+    Post.delete_all
     p = Post.create!(title: "Bye")
     delete "/posts/#{p.id}", headers: { "Accept" => TURBO_STREAM }
     assert_equal 200, response.status
+    assert_includes response.body, "action=\"append\" target=\"posts_list\""
+    assert_includes response.body, "No records yet"
     assert_includes response.body, "action=\"update\" target=\"turbo_flash\""
     assert_includes response.body, "deleted!"
   end
@@ -153,5 +157,30 @@ class TurboCrudControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "from_post_partial:Hello"
   ensure
     TurboCrud.config.model_defaults = previous
+  end
+
+  def test_flash_renderer_app_uses_shared_flash_partial
+    previous = TurboCrud.config.flash_renderer
+    TurboCrud.config.flash_renderer = :app
+
+    post "/posts", params: { title: "Hello", body: "World" }, headers: { "Accept" => TURBO_STREAM }
+
+    assert_equal 200, response.status
+    assert_includes response.body, "app-shared-flash"
+    assert_includes response.body, "turbo-crud__flash-stack"
+  ensure
+    TurboCrud.config.flash_renderer = previous
+  end
+
+  def test_flash_renderer_custom_partial_falls_back_to_default_when_missing
+    previous = TurboCrud.config.flash_renderer
+    TurboCrud.config.flash_renderer = "missing/path"
+
+    post "/posts", params: { title: "Hello", body: "World" }, headers: { "Accept" => TURBO_STREAM }
+
+    assert_equal 200, response.status
+    assert_includes response.body, "turbo-crud__flash-stack"
+  ensure
+    TurboCrud.config.flash_renderer = previous
   end
 end

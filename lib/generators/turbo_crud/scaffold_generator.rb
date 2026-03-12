@@ -225,26 +225,26 @@ module TurboCrud
           <% else %>
             <% editable_attrs.each do |attr| %>
               <% attr_type = f.object.class.type_for_attribute(attr).type rescue :string %>
-              <div>
-                <%= f.label attr, class: "block text-sm font-semibold text-slate-900" %>
+              <div class="space-y-1.5">
+                <%= f.label attr, class: "block text-sm font-semibold text-slate-800" %>
                 <% field_type = (preferred_types[attr]&.to_sym || attr_type) %>
                 <% if field_type == :boolean %>
-                  <div class="mt-2 flex items-center gap-2">
-                    <%= f.check_box attr, class: "h-4 w-4 rounded border-slate-300" %>
-                    <span class="text-sm text-slate-700"><%= attr.humanize %></span>
-                  </div>
+                  <label class="mt-1 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <%= f.check_box attr, class: "h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400" %>
+                    <span class="text-sm font-medium text-slate-700"><%= attr.humanize %></span>
+                  </label>
                 <% elsif field_type == :text %>
-                  <%= f.text_area attr, rows: 5, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                  <%= f.text_area attr, rows: 5, class: "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-300/60" %>
                 <% elsif [:integer, :float, :decimal].include?(field_type) %>
-                  <%= f.number_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                  <%= f.number_field attr, class: "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-300/60" %>
                 <% elsif field_type == :date %>
-                  <%= f.date_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                  <%= f.date_field attr, class: "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300/60" %>
                 <% elsif [:datetime, :timestamp].include?(field_type) %>
-                  <%= f.datetime_local_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                  <%= f.datetime_local_field attr, class: "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300/60" %>
                 <% elsif field_type == :time %>
-                  <%= f.time_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                  <%= f.time_field attr, class: "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300/60" %>
                 <% else %>
-                  <%= f.text_field attr, class: "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" %>
+                  <%= f.text_field attr, class: "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-300/60" %>
                 <% end %>
               </div>
             <% end %>

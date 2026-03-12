@@ -15,8 +15,121 @@ module TurboCrud
 
     # Flash frame: Turbo Streams can replace this for instant feedback.
     def turbo_crud_flash_frame
-      turbo_frame_tag(TurboCrud.config.flash_frame_id) do
-        render "turbo_crud/shared/flash"
+      frame_classes = ["turbo-crud__flash-frame", turbo_crud_flash_position_class]
+      safe_join([
+        turbo_frame_tag(
+          TurboCrud.config.flash_frame_id,
+          class: frame_classes.join(" "),
+          data: {
+            controller: "turbo-crud-flash",
+            turbo_crud_flash_auto_hide_ms_value: TurboCrud.config.flash_auto_hide_ms
+          }.compact
+        ) do
+          turbo_crud_render_flash
+        end,
+        turbo_crud_behavior_script_once
+      ])
+    end
+
+    # Build normalized flash messages for rendering.
+    def turbo_crud_flash_messages(notice: nil, alert: nil, source_flash: nil)
+      messages = []
+
+      messages << { level: :notice, text: notice.to_s } if notice.present?
+      messages << { level: :alert, text: alert.to_s } if alert.present?
+
+      # If explicit locals were passed, don't merge session flash to avoid stale leakage.
+      return messages if notice || alert
+
+      flash_source = source_flash || flash
+      level_map = TurboCrud.config.flash_levels || {}
+
+      level_map.each do |source_key, level|
+        value = flash_source[source_key]
+        next if value.blank?
+
+        messages << { level: level.to_sym, text: value.to_s }
+      end
+
+      messages.uniq
+    end
+
+    # Render flash payload using configured renderer.
+    def turbo_crud_render_flash(notice: nil, alert: nil, messages: nil)
+      normalized = messages || turbo_crud_flash_messages(notice: notice, alert: alert)
+      renderer = TurboCrud.config.flash_renderer
+
+      if renderer.respond_to?(:call)
+        return renderer.call(self, messages: normalized)
+      end
+
+      return "".html_safe if normalized.blank?
+
+      locals = {
+        messages: normalized,
+        notice: turbo_crud_message_for_level(normalized, :notice, :success),
+        alert: turbo_crud_message_for_level(normalized, :alert, :error, :warning)
+      }
+
+      partial =
+        case renderer
+        when :off, :none
+          return "".html_safe
+        when :app, :rails_default
+          "shared/flash"
+        when nil, :default then "turbo_crud/shared/flash"
+        else renderer.to_s
+        end
+
+      rendered = render partial: partial, locals: locals
+      return turbo_crud_wrap_app_flash(rendered) if %i[app rails_default].include?(renderer)
+
+      rendered
+    rescue ActionView::MissingTemplate
+      return "".html_safe if %i[off none app rails_default].include?(renderer)
+
+      # For explicit custom paths, fall back to safe default.
+      render partial: "turbo_crud/shared/flash", locals: locals
+    end
+
+    def turbo_crud_message_for_level(messages, *levels)
+      match = messages.find { |message| levels.include?(message[:level].to_sym) }
+      match && match[:text]
+    end
+
+    def turbo_crud_wrap_app_flash(rendered)
+      html = rendered.to_s
+      return rendered if html.include?("turbo-crud__flash-stack")
+
+      tag.div(rendered, class: "turbo-crud__flash-stack", aria: { live: "polite", atomic: "true" })
+    end
+
+    def turbo_crud_flash_level_class(level)
+      case level.to_sym
+      when :notice, :success then "turbo-crud__flash--notice"
+      when :alert, :error then "turbo-crud__flash--alert"
+      when :warning then "turbo-crud__flash--warning"
+      else "turbo-crud__flash--notice"
+      end
+    end
+
+    def turbo_crud_flash_icon(level)
+      case level.to_sym
+      when :notice, :success then "✓"
+      when :alert, :error then "!"
+      when :warning then "!"
+      else "i"
+      end
+    end
+
+    def turbo_crud_flash_position_class
+      case TurboCrud.config.flash_position.to_sym
+      when :top_center
+        "turbo-crud__flash-frame--top-center"
+      when :inline
+        "turbo-crud__flash-frame--inline"
+      else
+        "turbo-crud__flash-frame--top-right"
       end
     end
 
@@ -157,7 +270,9 @@ module TurboCrud
 
           const modalId = "#{TurboCrud.config.modal_frame_id}";
           const drawerId = "#{TurboCrud.config.drawer_frame_id}";
+          const flashId = "#{TurboCrud.config.flash_frame_id}";
           const managedFrameIds = new Set([modalId, drawerId]);
+          let flashTimer = null;
 
           function openContainer() {
             for (const id of managedFrameIds) {
@@ -187,6 +302,9 @@ module TurboCrud
           // Focus modal/drawer content when Turbo swaps a frame response in.
           document.addEventListener("turbo:frame-load", (event) => {
             const frame = event.target;
+            if (frame && frame.id === flashId) {
+              scheduleFlashAutoHide(frame);
+            }
             if (!frame || !managedFrameIds.has(frame.id)) return;
             const container = frame.querySelector("[data-turbo-crud-container]");
             if (!container) return;
@@ -224,6 +342,35 @@ module TurboCrud
               first.focus();
             }
           });
+
+          // Flash dismiss behavior without requiring Stimulus.
+          document.addEventListener("click", (event) => {
+            const dismiss = event.target.closest("[data-action~='turbo-crud-flash#dismiss']");
+            if (!dismiss) return;
+
+            const flash = dismiss.closest(".turbo-crud__flash");
+            if (flash) flash.remove();
+          });
+
+          function scheduleFlashAutoHide(frame) {
+            if (!frame) return;
+            const raw = frame.dataset.turboCrudFlashAutoHideMsValue;
+            const delay = Number.parseInt(raw || "", 10);
+            if (!Number.isFinite(delay) || delay <= 0) return;
+            if (!frame.innerHTML || frame.innerHTML.trim() === "") return;
+
+            if (flashTimer) {
+              window.clearTimeout(flashTimer);
+              flashTimer = null;
+            }
+
+            flashTimer = window.setTimeout(() => {
+              if (frame.id === flashId) frame.innerHTML = "";
+            }, delay);
+          }
+
+          // Initial page load flash (non-turbo navigation) should also auto-hide.
+          scheduleFlashAutoHide(document.getElementById(flashId));
 
           // Disable submit buttons while Turbo form request is in flight.
           document.addEventListener("submit", (event) => {

@@ -1,16 +1,23 @@
-<%# Flash partial. Tiny. Friendly. Like a snack. 🍪 %>
+<%# Flash messages rendered inside turbo_crud_flash_frame. %>
+<% flash_messages =
+  if local_assigns.key?(:messages)
+    Array(local_assigns[:messages])
+  else
+    turbo_crud_flash_messages(
+      notice: local_assigns[:notice],
+      alert: local_assigns[:alert]
+    )
+  end %>
 
-<% notice_message = local_assigns.key?(:notice) ? local_assigns[:notice] : flash[:notice] %>
-<% alert_message  = local_assigns.key?(:alert) ? local_assigns[:alert] : flash[:alert] %>
-
-<% if notice_message.present? %>
-  <div class="turbo-crud__flash turbo-crud__flash--notice" role="status">
-    <span><%= notice_message %></span>
-  </div>
-<% end %>
-
-<% if alert_message.present? %>
-  <div class="turbo-crud__flash turbo-crud__flash--alert" role="alert">
-    <span><%= alert_message %></span>
+<% if flash_messages.any? %>
+  <div class="turbo-crud__flash-stack" aria-live="polite" aria-atomic="true">
+    <% flash_messages.each do |message| %>
+      <% level = message[:level] || :notice %>
+      <div class="turbo-crud__flash <%= turbo_crud_flash_level_class(level) %>" role="<%= [:alert, :error].include?(level.to_sym) ? 'alert' : 'status' %>">
+        <span class="turbo-crud__flash-icon" aria-hidden="true"><%= turbo_crud_flash_icon(level) %></span>
+        <span class="turbo-crud__flash-text"><%= message[:text] %></span>
+        <button type="button" class="turbo-crud__flash-close" aria-label="Dismiss message" data-action="turbo-crud-flash#dismiss">×</button>
+      </div>
+    <% end %>
   </div>
 <% end %>

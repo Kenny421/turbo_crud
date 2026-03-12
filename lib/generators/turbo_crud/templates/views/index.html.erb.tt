@@ -1,15 +1,40 @@
 <%# Index page: list + "New" that opens a modal by default. %>
 
-<div class="flex items-center justify-between gap-3">
-  <div>
-    <h1 class="text-2xl font-bold"><%%= <%= class_name %>.model_name.human(count: 2) %></h1>
-    <p class="text-sm text-slate-600">Turbo list updates + modal/drawer create/edit.</p>
+<div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+<section class="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+  <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(15,23,42,0.08),transparent_55%)]"></div>
+  <div class="relative p-6 md:p-8">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="max-w-2xl space-y-3">
+        <h1 class="text-3xl font-black tracking-tight text-slate-900 md:text-4xl"><%%= <%= class_name %>.model_name.human(count: 2) %></h1>
+        <p class="text-sm leading-relaxed text-slate-600 md:text-base">
+          Review and manage your records with Turbo list updates and in-frame create/edit flows.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+          <%%= @<%= plural_name %>.size %> total
+        </span>
+        <%%= <%= new_link_helper %> "New #{<%= class_name %>.model_name.human}",
+          new_<%= singular_name %>_path,
+          class: "inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2" %>
+      </div>
+    </div>
   </div>
+</section>
 
-  <%%= <%= new_link_helper %> "New", new_<%= singular_name %>_path,
-    class: "rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" %>
-</div>
-
-<div class="mt-6 space-y-3" id="<%%= turbo_list_id(<%= class_name %>) %>">
-  <%%= render partial: "<%= plural_name %>/row", collection: @<%= plural_name %>, as: :<%= singular_name %> %>
+<section class="mt-6">
+  <div id="<%%= turbo_list_id(<%= class_name %>) %>" class="grid gap-3">
+    <%% if @<%= plural_name %>.any? %>
+      <%%= render partial: "<%= plural_name %>/row", collection: @<%= plural_name %>, as: :<%= singular_name %> %>
+    <%% else %>
+      <div id="<%%= "#{turbo_list_id(<%= class_name %>)}_empty_state" %>" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+        <p class="text-sm font-semibold uppercase tracking-wide text-slate-500">No records yet</p>
+        <h2 class="mt-2 text-xl font-bold text-slate-900">Create your first <%%= <%= class_name %>.model_name.human.downcase %></h2>
+        <p class="mt-2 text-sm text-slate-600">Once created, items will appear here and update instantly with Turbo Streams.</p>
+      </div>
+    <%% end %>
+  </div>
+</section>
 </div>

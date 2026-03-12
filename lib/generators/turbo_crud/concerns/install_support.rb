@@ -51,18 +51,24 @@ module TurboCrud
         end
 
         content = File.read(target)
-        lines = [
+        sprockets_lines = [
           " *= require turbo_crud",
           " *= require turbo_crud_modal",
           " *= require turbo_crud_drawer"
         ]
+        import_lines = [
+          "@import \"turbo_crud.css\";",
+          "@import \"turbo_crud_modal.css\";",
+          "@import \"turbo_crud_drawer.css\";"
+        ]
 
-        return true if lines.all? { |line| content.include?(line) }
+        return true if sprockets_lines.all? { |line| content.include?(line) }
+        return true if import_lines.all? { |line| content.include?(line) }
 
-        if content.include?("*/")
-          inject_into_file target, lines.map { |line| " #{line}\n" }.join, before: "*/"
+        if content.include?("/*") && content.include?("*/") && content.include?("*= require")
+          inject_into_file target, sprockets_lines.map { |line| " #{line}\n" }.join, before: "*/"
         else
-          append_to_file target, "\n/* TurboCrud: if you're using Sprockets manifest style, add requires:\n#{lines.join("\n")}\n*/\n"
+          append_to_file target, "\n/* TurboCrud imports (Propshaft/cssbundling/plain CSS): */\n#{import_lines.join("\n")}\n"
         end
 
         true
@@ -72,6 +78,7 @@ module TurboCrud
         controllers_index = File.join(destination_root, "app/javascript/controllers/index.js")
         application_js = File.join(destination_root, "app/javascript/application.js")
         controller_path = File.join(destination_root, "app/javascript/controllers/turbo_crud_controller.js")
+        flash_controller_path = File.join(destination_root, "app/javascript/controllers/turbo_crud_flash_controller.js")
 
         unless File.exist?(controllers_index) || File.exist?(application_js)
           say_status :warning, "No JS entrypoint found for Stimulus (expected app/javascript/controllers/index.js or app/javascript/application.js)", :yellow
@@ -109,21 +116,65 @@ module TurboCrud
           }
         JS
 
+        create_file flash_controller_path, <<~JS unless File.exist?(flash_controller_path)
+          import { Controller } from "@hotwired/stimulus"
+
+          // Handles flash dismiss + optional auto-hide.
+          export default class extends Controller {
+            static values = { autoHideMs: Number }
+
+            connect() {
+              this.scheduleAutoHide()
+            }
+
+            dismiss(event) {
+              const flash = event.target.closest(".turbo-crud__flash")
+              if (!flash) return
+              flash.remove()
+            }
+
+            scheduleAutoHide() {
+              if (!this.hasAutoHideMsValue || this.autoHideMsValue <= 0) return
+
+              this.clearTimer()
+              this.timer = window.setTimeout(() => {
+                this.element.innerHTML = ""
+              }, this.autoHideMsValue)
+            }
+
+            disconnect() {
+              this.clearTimer()
+            }
+
+            clearTimer() {
+              if (!this.timer) return
+              window.clearTimeout(this.timer)
+              this.timer = null
+            }
+          }
+        JS
+
         import_line = "import TurboCrudController from \"./turbo_crud_controller\"\n"
         register_line = "application.register(\"turbo-crud\", TurboCrudController)\n"
+        flash_import_line = "import TurboCrudFlashController from \"./turbo_crud_flash_controller\"\n"
+        flash_register_line = "application.register(\"turbo-crud-flash\", TurboCrudFlashController)\n"
 
         if File.exist?(controllers_index)
           index_content = File.read(controllers_index)
           append_to_file controllers_index, "\n#{import_line}" unless index_content.include?("./turbo_crud_controller")
+          append_to_file controllers_index, flash_import_line unless index_content.include?("./turbo_crud_flash_controller")
 
           refreshed_content = File.read(controllers_index)
           append_to_file controllers_index, register_line unless refreshed_content.include?("application.register(\"turbo-crud\"")
+          append_to_file controllers_index, flash_register_line unless refreshed_content.include?("application.register(\"turbo-crud-flash\"")
           return true
         end
 
         app_content = File.read(application_js)
         if app_content.include?("@hotwired/stimulus")
-          append_to_file application_js, "\n// TurboCrud Stimulus controller\n#{import_line}" unless app_content.include?("./controllers/turbo_crud_controller")
+          unless app_content.include?("./controllers/turbo_crud_controller")
+            append_to_file application_js, "\n// TurboCrud Stimulus controllers\n#{import_line}#{flash_import_line}"
+          end
           return true
         end
 
