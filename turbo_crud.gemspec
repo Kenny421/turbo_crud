@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.name          = "turbo_crud"
   spec.version       = "0.5.0"
   spec.authors       = ["Kenny Reid"]
-  spec.email         = ["your_email@example.com"] # update this
+  spec.email         = ["your_email@example.com"] # will update this when i get a email for this work space
 
   spec.summary       = "Opinionated Turbo CRUD patterns for Rails."
   spec.description   = "TurboCrud adds controller responders, helpers, and generators to simplify CRUD with Turbo Frames and Streams. Supports modal and drawer forms, flash handling, and works with existing Rails apps or full scaffolds."
